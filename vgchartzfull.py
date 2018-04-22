@@ -3,7 +3,7 @@ import urllib
 import pandas as pd
 import numpy as np
 
-pages = 50
+pages = 19
 rec_count = 0
 rank = []
 gname = []
@@ -22,7 +22,7 @@ sales_gl = []
 
 urlhead = 'http://www.vgchartz.com/gamedb/?page='
 urltail = '&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both'
-urltail += '&results=10&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0'
+urltail += '&results=1000&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0'
 urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1'
 urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
 urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
@@ -31,7 +31,7 @@ for page in range(1, pages):
     surl = urlhead + str(page) + urltail
     r = urllib.request.urlopen(surl).read()
     soup = BeautifulSoup(r)
-    print(page)
+    print(f"Page: {page}")
 
     # vgchartz website is really weird so we have to search for
     # <a> tags with game urls
@@ -46,6 +46,7 @@ for page in range(1, pages):
 
         # add name to list
         gname.append(" ".join(tag.string.split()))
+        print(f"{rec_count + 1} Fetch data for game {gname[-1]}")
 
         # get different attributes
         # traverse up the DOM tree
@@ -55,21 +56,36 @@ for page in range(1, pages):
         publisher.append(data[4].string)
         developer.append(data[5].string)
         critic_score.append(
-            float(data[6].string) if data[6].string.split()[0] != "N/A" else np.nan)
+            float(data[6].string) if
+            not data[6].string.startswith("N/A") else np.nan)
         user_score.append(
-            float(data[7].string) if data[7].string.split()[0] != "N/A" else np.nan)
-        sales_na.append(float(data[9].string[:-1]))
-        sales_pal.append(float(data[10].string[:-1]))
-        sales_jp.append(float(data[11].string[:-1]))
-        sales_ot.append(float(data[12].string[:-1]))
-        sales_gl.append(float(data[8].string[:-1]))
+            float(data[7].string) if
+            not data[7].string.startswith("N/A") else np.nan)
+        sales_na.append(
+            float(data[9].string[:-1]) if
+            not data[9].string.startswith("N/A") else np.nan)
+        sales_pal.append(
+            float(data[10].string[:-1]) if
+            not data[10].string.startswith("N/A") else np.nan)
+        sales_jp.append(
+            float(data[11].string[:-1]) if
+            not data[11].string.startswith("N/A") else np.nan)
+        sales_ot.append(
+            float(data[12].string[:-1]) if
+            not data[12].string.startswith("N/A") else np.nan)
+        sales_gl.append(
+            float(data[8].string[:-1]) if
+            not data[8].string.startswith("N/A") else np.nan)
         release_year = data[13].string.split()[-1]
         # different format for year
-        if int(release_year) >= 80:
-            year_to_add = np.int32("19" + release_year)
+        if release_year.startswith('N/A'):
+            year.append('N/A')
         else:
-            year_to_add = np.int32("20" + release_year)
-        year.append(year_to_add)
+            if int(release_year) >= 80:
+                year_to_add = np.int32("19" + release_year)
+            else:
+                year_to_add = np.int32("20" + release_year)
+            year.append(year_to_add)
 
         # go to every individual website to get genre info
         url_to_game = tag.attrs['href']
