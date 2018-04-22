@@ -1,26 +1,31 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, element
 import urllib
 import pandas as pd
+import numpy as np
 
-pages = 18
+pages = 50
 rec_count = 0
 rank = []
 gname = []
 platform = []
 year = []
 genre = []
+critic_score = []
+user_score = []
 publisher = []
+developer = []
 sales_na = []
-sales_eu = []
+sales_pal = []
 sales_jp = []
 sales_ot = []
 sales_gl = []
 
 urlhead = 'http://www.vgchartz.com/gamedb/?page='
-urltail = ''
-urltail += '&results=1000&name=&platform=&minSales=0.01'
-urltail += '&publisher=&genre=&shownasales=1&sort=GL'
-# urltail = '&results=10&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both&results=10&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=0&showcriticscore=0&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=0&showjapansales=1&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
+urltail = '&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both'
+urltail += '&results=10&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0'
+urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1'
+urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
+urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
 
 for page in range(1, pages):
     surl = urlhead + str(page) + urltail
@@ -28,56 +33,73 @@ for page in range(1, pages):
     soup = BeautifulSoup(r)
     print(page)
 
-    tables = soup.find_all("table")
-    for table in tables:
-        print('*' * 35)
-        print(table)
+    # vgchartz website is really weird so we have to search for
+    # <a> tags with game urls
+    game_tags = list(filter(
+        lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'),
+        # discard the first 10 elements because those
+        # links are in the navigation bar
+        soup.find_all("a")
+    ))[10:]
 
-    for row in chart.find_all('tr')[1:]:
-        try:
-            col = row.find_all('td')
+    for tag in game_tags:
 
-            # extract data into column data
-            column_1 = col[0].string.strip()
-            column_2 = col[1].string.strip()
-            column_3 = col[2].string.strip()
-            column_4 = col[3].string.strip()
-            column_5 = col[4].string.strip()
-            column_6 = col[5].string.strip()
-            column_7 = col[6].string.strip()
-            column_8 = col[7].string.strip()
-            column_9 = col[8].string.strip()
-            column_10 = col[9].string.strip()
-            column_11 = col[10].string.strip()
+        # add name to list
+        gname.append(" ".join(tag.string.split()))
 
-            # Add Data to columns
-            # Adding data only if able to read all of the columns
-            rank.append(column_1)
-            gname.append(column_2)
-            platform.append(column_3)
-            year.append(column_4)
-            genre.append(column_5)
-            publisher.append(column_6)
-            sales_na.append(column_7)
-            sales_eu.append(column_8)
-            sales_jp.append(column_9)
-            sales_ot.append(column_10)
-            sales_gl.append(column_11)
+        # get different attributes
+        # traverse up the DOM tree
+        data = tag.parent.parent.find_all("td")
+        rank.append(np.int32(data[0].string))
+        platform.append(data[3].find('img').attrs['alt'])
+        publisher.append(data[4].string)
+        developer.append(data[5].string)
+        critic_score.append(
+            float(data[6].string) if data[6].string.split()[0] != "N/A" else np.nan)
+        user_score.append(
+            float(data[7].string) if data[7].string.split()[0] != "N/A" else np.nan)
+        sales_na.append(float(data[9].string[:-1]))
+        sales_pal.append(float(data[10].string[:-1]))
+        sales_jp.append(float(data[11].string[:-1]))
+        sales_ot.append(float(data[12].string[:-1]))
+        sales_gl.append(float(data[8].string[:-1]))
+        release_year = data[13].string.split()[-1]
+        # different format for year
+        if int(release_year) >= 80:
+            year_to_add = np.int32("19" + release_year)
+        else:
+            year_to_add = np.int32("20" + release_year)
+        year.append(year_to_add)
 
-            rec_count += 1
+        # go to every individual website to get genre info
+        url_to_game = tag.attrs['href']
+        site_raw = urllib.request.urlopen(url_to_game).read()
+        sub_soup = BeautifulSoup(site_raw, "html.parser")
+        # again, the info box is inconsistent among games so we
+        # have to find all the h2 and traverse from that to the genre name
+        h2s = sub_soup.find("div", {"id": "gameGenInfoBox"}).find_all('h2')
+        # make a temporary tag here to search for the one that contains
+        # the word "Genre"
+        temp_tag = element.Tag
+        for h2 in h2s:
+            if h2.string == 'Genre':
+                temp_tag = h2
+        genre.append(temp_tag.next_sibling.string)
 
-        except:
-            continue
+        rec_count += 1
 
 columns = {
     'Rank': rank,
-    'Name': gname, 
+    'Name': gname,
     'Platform': platform,
     'Year': year,
     'Genre': genre,
+    'Critic_Score': critic_score,
+    'User_Score': user_score,
     'Publisher': publisher,
+    'Developer': developer,
     'NA_Sales': sales_na,
-    'EU_Sales': sales_eu,
+    'PAL_Sales': sales_pal,
     'JP_Sales': sales_jp,
     'Other_Sales': sales_ot,
     'Global_Sales': sales_gl
@@ -87,7 +109,6 @@ df = pd.DataFrame(columns)
 print(df.columns)
 df = df[[
     'Rank', 'Name', 'Platform', 'Year', 'Genre',
-    'Publisher', 'NA_Sales', 'EU_Sales', 'JP_Sales',
-    'Other_Sales', 'Global_Sales']]
-del df.index.name
-df.to_csv("vgsales1.csv", sep=",", encoding='utf-8')
+    'Publisher', 'Developer', 'Critic_Score', 'User_Score',
+    'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales', 'Global_Sales']]
+df.to_csv("vgsales.csv", sep=",", encoding='utf-8', index=False)
