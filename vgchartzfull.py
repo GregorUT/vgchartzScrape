@@ -2,8 +2,15 @@ from bs4 import BeautifulSoup, element
 import urllib
 import pandas as pd
 import numpy as np
+import requests
+import time 
+from user_agent import generate_user_agent
 
-pages = 19
+headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv: 12.0) Gecko/20100101 Firefox/12.0'}
+# generate a new header for every new page
+headers = {'User-Agent': generate_user_agent(device_type = 'desktop', os=('mac', 'linux'))}
+
+pages = 56
 rec_count = 0
 rank = []
 gname = []
@@ -19,13 +26,14 @@ sales_pal = []
 sales_jp = []
 sales_ot = []
 sales_gl = []
+rating = []
 
-urlhead = 'http://www.vgchartz.com/gamedb/?page='
-urltail = '&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both'
-urltail += '&results=1000&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0'
-urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1'
-urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
-urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
+urlhead = 'http://www.vgchartz.com/games/games.php?page='
+urltail = '&results=200&name=&console=&keyword=&publisher=&genre=&order=Sales&ownership=Both'
+urltail += '&banner=Both&showdeleted=&region=All&goty_year=&developer='
+urltail += '&direction=DESC&showtotalsales=1&shownasales=1&showpalsales=1&showjapansales=1'
+urltail += '&showothersales=1&showpublisher=1&showdeveloper=1&showreleasedate=1&showlastupdate=1'
+urltail += '&showvgchartzscore=1&showcriticscore=1&showuserscore=1&showshipped=1&alphasort=&showmultiplat=Yes&showgenre=1'
 
 for page in range(1, pages):
     surl = urlhead + str(page) + urltail
@@ -56,27 +64,27 @@ for page in range(1, pages):
         publisher.append(data[4].string)
         developer.append(data[5].string)
         critic_score.append(
-            float(data[6].string) if
-            not data[6].string.startswith("N/A") else np.nan)
-        user_score.append(
             float(data[7].string) if
             not data[7].string.startswith("N/A") else np.nan)
+        user_score.append(
+            float(data[8].string) if
+            not data[8].string.startswith("N/A") else np.nan)
         sales_na.append(
-            float(data[9].string[:-1]) if
-            not data[9].string.startswith("N/A") else np.nan)
-        sales_pal.append(
-            float(data[10].string[:-1]) if
-            not data[10].string.startswith("N/A") else np.nan)
-        sales_jp.append(
             float(data[11].string[:-1]) if
             not data[11].string.startswith("N/A") else np.nan)
-        sales_ot.append(
+        sales_pal.append(
             float(data[12].string[:-1]) if
             not data[12].string.startswith("N/A") else np.nan)
+        sales_jp.append(
+            float(data[13].string[:-1]) if
+            not data[13].string.startswith("N/A") else np.nan)
+        sales_ot.append(
+            float(data[14].string[:-1]) if
+            not data[14].string.startswith("N/A") else np.nan)
         sales_gl.append(
-            float(data[8].string[:-1]) if
-            not data[8].string.startswith("N/A") else np.nan)
-        release_year = data[13].string.split()[-1]
+            float(data[10].string[:-1]) if
+            not data[10].string.startswith("N/A") else np.nan)
+        release_year = data[15].string.split()[-1]
         # different format for year
         if release_year.startswith('N/A'):
             year.append('N/A')
@@ -89,19 +97,31 @@ for page in range(1, pages):
 
         # go to every individual website to get genre info
         url_to_game = tag.attrs['href']
-        site_raw = urllib.request.urlopen(url_to_game).read()
-        sub_soup = BeautifulSoup(site_raw, "html.parser")
-        # again, the info box is inconsistent among games so we
-        # have to find all the h2 and traverse from that to the genre name
-        h2s = sub_soup.find("div", {"id": "gameGenInfoBox"}).find_all('h2')
-        # make a temporary tag here to search for the one that contains
-        # the word "Genre"
-        temp_tag = element.Tag
-        for h2 in h2s:
-            if h2.string == 'Genre':
-                temp_tag = h2
-        genre.append(temp_tag.next_sibling.string)
+        try:
+            #site_raw = urllib.request.urlopen(url_to_game).read()
+            site_raw = requests.get(url_to_game, headers=headers)
+            sub_soup = BeautifulSoup(site_raw.text, "lxml")
+            # again, the info box is inconsistent among games so we
+            # have to find all the h2 and traverse from that to the genre name
+            gamebox = sub_soup.find("div", {"id": "gameGenInfoBox"})
+            h2s = gamebox.find_all('h2')
+            # make a temporary tag here to search for the one that contains
+            # the word "Genre"
+            temp_tag = element.Tag
+            for h2 in h2s:
+                if h2.string == 'Genre':
+                    temp_tag = h2
+            genre.append(temp_tag.next_sibling.string)
+            #find the ESRB rating
+            game_rating = gamebox.find('img').get('src')
+            if 'esrb' in game_rating:
+                rating.append(game_rating[game_rating.index('esrb'):])
+        except:
+            print('something wrong with game url:', url_to_game, 'code:', site_raw.status_code)
+            genre.append(np.nan)
+            rating.append(np.nan)
 
+        time.sleep(5)
         rec_count += 1
 
 columns = {
