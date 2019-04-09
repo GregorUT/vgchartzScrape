@@ -5,16 +5,15 @@ import requests
 import time
 import unidecode
 from user_agent import generate_user_agent
-from proxies_gen import get_proxies
+from proxies_gen import get_proxies, test_proxies
 from itertools import cycle
 from lxml.html import fromstring
-# import threading
 from multiprocessing import Pool  # This is a thread-based Pool
-from multiprocessing import cpu_count
-
+from requests.exceptions import ConnectionError, Timeout, ProxyError
+import sys
+sys.setrecursionlimit(10000) # need to optimize code.
 
 rec_count = 0
-thread_counter = 0
 start_time = time.time()
 current_time = time.time()
 csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
@@ -25,7 +24,6 @@ csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
 # publisher, release year, critic score, user score, na sales, pal sales,
 # jp sales, other sales, total sales, total shipped, last update, url, status
 # last two columns for debugging
-
 df = pd.DataFrame(columns=[
     'Rank', 'Name', 'basename', 'Genre', 'ESRB_Rating', 'Platform', 'Publisher',
     'Developer', 'VGChartz_Score', 'Critic_Score', 'User_Score',
@@ -52,7 +50,6 @@ def parse_games(game_tags):
     for tag in game_tags:
         game = {}
         game["Name"] = " ".join(tag.string.split())
-        # print(f"{rec_count + 1} Fetch data for game {game['Name']}")
         print(rec_count+1, 'Fetch Data for game', unidecode.unidecode(game['Name']))
 
         data = tag.parent.parent.find_all("td")
@@ -107,24 +104,21 @@ def parse_genre_esrb(df):
     """
     loads every game's url to get genre and esrb rating
     """
-    count = 0
-    # global thread_counter
-    # thread_counter += 1
 
     headers = {'User-Agent': generate_user_agent(
-        device_type='desktop', os=('mac', 'linux'))}
-    
-    proxies = get_proxies()
-    proxy = cycle(proxies)
+        device_type='desktop', os=('mac', 'linux'))}  
 
-    for index, row in df.loc[df['status'] == 0].iterrows():
-        # we only want to scrape 200 games at a time.
-        if count == 200:
-            break
+    print("'\n'******getting list of proxies and testing them******'\n'")
+    #proxies = set(requests.get('https://proxy.rudnkh.me/txt').text.split())
+    #proxies = get_proxies()
+    # proxies = test_proxies(proxies)
+    #proxy = cycle(proxies)
+    print('******begin scraping for Genre and Rating******')
+
+    for index, row in df.iterrows():
         try:
-            # uses global headers and proxies
-            game_page = requests.get(
-                df.at[index, 'url'], headers=headers, proxies={"http": proxy, "https": proxy})
+            #game_page = requests.get(df.at[index, 'url'], headers=headers, proxies={"http": proxy, "https": proxy})
+            game_page = requests.get(df.at[index, 'url'])
             if game_page.status_code == 200:
                 sub_soup = BeautifulSoup(game_page.text, "lxml")
                 # again, the info box is inconsistent among games so we
@@ -137,39 +131,31 @@ def parse_genre_esrb(df):
                 for h2 in h2s:
                     if h2.string == 'Genre':
                         temp_tag = h2
-                df.at[index, 'Genre'] = temp_tag.next_sibling.string
+                df.loc[index, 'Genre'] = temp_tag.next_sibling.string
 
                 # find the ESRB rating
                 game_rating = gamebox.find('img').get('src')
                 if 'esrb' in game_rating:
-                    df.at[index, 'ESRB_Rating'] = game_rating.split(
+                    df.loc[index, 'ESRB_Rating'] = game_rating.split(
                         '_')[1].split('.')[0].upper()
-
-                # we successfuly got the genre and rating if available
-                df.at[index, 'status'] = 1
+                # we successfuly got the genre and rating
+                df.loc[index, 'status'] = 1
                 print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
-        except:
+            #else:
+                #proxies.remove(proxy)
+                #proxy = next(proxies)
+
+        except (ConnectionError, Timeout):
             print('Something went wrong while connecting to', df.at[index, 'Name'], 'url, will try again later')
-            # probably something went wrong the proxy?
-            proxy = next(proxies)
 
-        # wait for 2 seconds between every call
+        #except(ProxyError):
+            #proxies.remove(proxy)
+            #proxy = next(proxies)
+
+        # wait for 2 seconds between every call,
+        # we do not want to get blocked or abuse the server
         time.sleep(2)
-        count += 1
-
-
-# def retry_games():
-#     """try to scrape the missing data again"""
-#     global df
-#     # run every 5 minutes
-#     t = threading.Timer(300.0, retry_games)
-#     t.start()
-#     print("Starting to scrape missing data")
-#     if len(df[df['status'] == 0]) == 0:
-#         t.cancel()
-#     else:
-#         parse_genre_esrb()
-
+    return df
 
 # get the number of pages
 page = requests.get('http://www.vgchartz.com/gamedb/').text
@@ -194,32 +180,34 @@ for page in range(1, pages):  # pages = 2 for debugging!
     parse_games(game_tags)
 
 
-# # this should repeatedly try scrape genre and rating until it reaches this number of calls
+def retry_game():
+    """try to scrape the missing data again"""
+    global df
+    failed_games = len(df['status'] == 0)
+    # every worker can have 100 games at max
+    NUM_WORKERS = int(np.ceil(failed_games/100))
+    df_subsets = np.array_split(df, NUM_WORKERS)
+    print(df_subsets)
+    pool = Pool(processes=NUM_WORKERS)
+    result = pool.map(parse_genre_esrb, df_subsets)
+    updated_df = pd.concat([i for i in result if not i.empty])
+    pool.close()
+    pool.join()
+    return updated_df if len(updated_df) > 0 else df
 
-NUM_WORKERS = cpu_count() * 2
-while len(df.loc[df['status'] == 0]) > 0:
-    chunks = NUM_WORKERS // len(df.loc[df['status'] == 0])
-    df_subsets = np.array_split(
-        df, chunks) if chunks != 0 else np.array_split(df, 1)
-    if __name__ == "__main__":
-        with Pool(NUM_WORKERS) as p:
-            p.map(parse_genre_esrb, df_subsets)
-    
-    ## add sleep, maybe proxies and headers here? better right?
 
+if __name__ == "__main__":
+    while len(df['status']) > 0 or time.time() - start_time >= 300: # change to one day
+        df = retry_game()
+    #df = retry_game()
+    elapsed_time = time.time() - start_time
+    print("Scraped", rec_count, "games in", round(elapsed_time, 2), "seconds.")
 
-# chunk_size = int(df.shape[0] / 4)
-# for start in range(0, df.shape[0], chunk_size):
-#     df_subset = df.iloc[start:start + chunk_size]
-#     process_data(df_subset)
+    # select only these columns in the final dataset
+    df_final = df[[
+        'Rank', 'Name', 'Platform', 'Year', 'Genre', 'ESRB_Rating',
+        'Publisher', 'Developer', 'Critic_Score', 'User_Score',
+        'Global_Sales', 'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales']]
 
-# select only these columns in the final dataset
-df_final = df[[
-    'Rank', 'Name', 'Platform', 'Year', 'Genre', 'ESRB_Rating',
-    'Publisher', 'Developer', 'Critic_Score', 'User_Score',
-    'Global_Sales', 'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales']]
-df_final.to_csv(csvfilename, sep=",", encoding='utf-8', index=False)
-
-elapsed_time = time.time() - start_time
-print("Scraped", rec_count, "games in", round(elapsed_time, 2), "seconds.")
-print("Wrote scraper data to", csvfilename)
+    df_final.to_csv(csvfilename, sep=",", encoding='utf-8', index=False)
+    print("Wrote scraper data to", csvfilename)
