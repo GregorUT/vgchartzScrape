@@ -29,10 +29,10 @@ Free proxies:
 [3](https://proxy.rudnkh.me/txt)
 [4](https://www.us-proxy.org/)
 
-- [*] added multiprocessing for faster results with a maximum of 24 workers.
-- [*] added proxies to avoid being blocked 
-- [*] handling couple of exceptions
-- [*] scraped data gets saved before raising an unexpected error
+- [x] added multiprocessing for faster results with a maximum of 24 workers.
+- [x] added proxies to avoid being blocked 
+- [x] handling couple of exceptions
+- [x] scraped data gets saved before raising an unexpected error
 - [ ] add the option to continue where we left off due to an unexpected error
 - [ ] convert the script to a class or use scrapy, reference
     - https://edmundmartin.com/multi-threaded-crawler-in-python/
