@@ -106,3 +106,9 @@ venv.bak/
 
 # csv
 *.csv
+
+# ipynb
+*.ipynb
+
+# ignore this folder
+testing/

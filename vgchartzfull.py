@@ -11,7 +11,9 @@ from lxml.html import fromstring
 from multiprocessing import Pool  # This is a thread-based Pool
 from requests.exceptions import ConnectionError, Timeout, ProxyError
 import sys
-sys.setrecursionlimit(10000) # need to optimize code.
+sys.setrecursionlimit(10000)  # need to optimize code.
+proxy_enabled = False
+
 
 def parse_games(game_tags):
     """
@@ -25,7 +27,8 @@ def parse_games(game_tags):
     for tag in game_tags:
         game = {}
         game["Name"] = " ".join(tag.string.split())
-        print(rec_count+1, 'Fetch Data for game', unidecode.unidecode(game['Name']))
+        print(rec_count+1, 'Fetch Data for game',
+              unidecode.unidecode(game['Name']))
 
         data = tag.parent.parent.find_all("td")
         if data:
@@ -76,24 +79,24 @@ def parse_games(game_tags):
 
 
 def parse_genre_esrb(df):
-    """
-    loads every game's url to get genre and esrb rating
-    """
-
+    """loads every game's url to get genre and esrb rating"""
     headers = {'User-Agent': generate_user_agent(
-        device_type='desktop', os=('mac', 'linux'))}  
-
-    print("'\n'******getting list of proxies and testing them******'\n'")
-    #proxies = set(requests.get('https://proxy.rudnkh.me/txt').text.split())
-    #proxies = get_proxies()
-    # proxies = test_proxies(proxies)
-    #proxy = cycle(proxies)
-    print('******begin scraping for Genre and Rating******')
+        device_type='desktop', os=('mac', 'linux'))}
+    proxy = {}
+    if proxy_enabled:
+        print("\n******getting list of proxies and testing them******'\n")
+        # this an api call which returns a list of working proxies that get checked evrey 15 minutes
+        link = "https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=1000&country=all&ssl=all&anonymity=all&uptime=100"
+        proxies = list(requests.get(link).text.split())
+        # return 5 (at max) working proxies for every worker
+        proxies = test_proxies(np.random.choice(proxies, 30, replace=False), 5)
+        proxies = cycle(proxies)
+        proxy = next(proxies)
 
     for index, row in df.iterrows():
         try:
-            #game_page = requests.get(df.at[index, 'url'], headers=headers, proxies={"http": proxy, "https": proxy})
-            game_page = requests.get(df.at[index, 'url'])
+            game_page = requests.get(df.at[index, 'url'], headers=headers, proxies={
+                                     "http": proxy, "https": proxy}, timeout=5)
             if game_page.status_code == 200:
                 sub_soup = BeautifulSoup(game_page.text, "lxml")
                 # again, the info box is inconsistent among games so we
@@ -115,49 +118,46 @@ def parse_genre_esrb(df):
                         '_')[1].split('.')[0].upper()
                 # we successfuly got the genre and rating
                 df.loc[index, 'status'] = 1
-                print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
-            #else:
-                #proxies.remove(proxy)
-                #proxy = next(proxies)
+                print('Successfully scraped genre and rating for :',
+                      df.at[index, 'Name'])
+
+        except(ProxyError):
+            proxy = next(proxies)
 
         except (ConnectionError, Timeout):
-            print('Something went wrong while connecting to', df.at[index, 'Name'], 'url, will try again later')
-
-        #except(ProxyError):
-            #proxies.remove(proxy)
-            #proxy = next(proxies)
+            print('Something went wrong while connecting to',
+                  df.at[index, 'Name'], 'url, will try again later')
 
         # wait for 2 seconds between every call,
         # we do not want to get blocked or abuse the server
         time.sleep(2)
     return df
 
+
 def retry_game(df):
     """try to scrape the missing data again"""
-    # global df
-    # failed_games = len(df['status'] == 0)
-    # # every worker can have 100 games at max
-    # NUM_WORKERS = int(np.ceil(failed_games/100))
-    # df_subsets = np.array_split(df, NUM_WORKERS)
-    # if df is None:
-    #     return None
-    # pool = Pool(processes=NUM_WORKERS)
-    # #result = pool.map(parse_genre_esrb, df_subsets)
-    # updated_df = pd.concat(pool.map(parse_genre_esrb, df_subsets))
-    # pool.close()
-    # pool.join()
-    # return updated_df
-
     return parse_genre_esrb(df)
 
 
-
 if __name__ == "__main__":
+    def process_games(df):
+        failed_games = len(df[df['status'] == 0])
+        NUM_WORKERS = int(np.ceil(failed_games/100)) + 1
+        if NUM_WORKERS > 24:
+            NUM_WORKERS = 24  # trying to keep it to max 24 workers at every run
+        df_subsets = np.array_split(df[df['status'] == 0], NUM_WORKERS)
+        pool = Pool(processes=NUM_WORKERS)
+        results = pool.map(retry_game, df_subsets)
+        df_updated = pd.concat(results)
+        df = pd.concat([df[df['status'] == 1], df_updated])
+        pool.close()
+        pool.join()
+        return df
+
     rec_count = 0
     start_time = time.time()
     current_time = time.time()
     csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
-
 
     # initialize a panda dataframe to store all games with the following columns:
     # rank, name, img-url, vgchartz score, genre, ESRB rating, platform, developer,
@@ -171,57 +171,54 @@ if __name__ == "__main__":
         'Other_Sales', 'Year', 'Last_Update', 'url', 'status'])
 
     urlhead = 'http://www.vgchartz.com/games/games.php?page='
-    urltail = '&results=10&name=&console=&keyword=&publisher=&genre=&order=Sales&ownership=Both'
+    urltail = '&results=1000&name=&console=&keyword=&publisher=&genre=&order=Sales&ownership=Both'
     urltail += '&banner=Both&showdeleted=&region=All&goty_year=&developer='
     urltail += '&direction=DESC&showtotalsales=1&shownasales=1&showpalsales=1&showjapansales=1'
     urltail += '&showothersales=1&showpublisher=1&showdeveloper=1&showreleasedate=1&showlastupdate=1'
     urltail += '&showvgchartzscore=1&showcriticscore=1&showuserscore=1&showshipped=1&alphasort=&showmultiplat=Yes&showgenre=1'
-    
-        
+
     # get the number of pages
     page = requests.get('http://www.vgchartz.com/gamedb/').text
     x = fromstring(page).xpath(
         "//th[@colspan='3']/text()")[0].split('(', 1)[1].split(')')[0]
-    pages = np.ceil(int(x.replace(',', ""))/1000)
+    pages = int(np.ceil(int(x.replace(',', ""))/1000))
 
-    pages = 3
     for page in range(1, pages):  # pages = 2 for debugging!
         surl = urlhead + str(page) + urltail
         r = requests.get(surl).text
         soup = BeautifulSoup(r, 'lxml')
-        print('Scraping page:', page)
+        print("******Scraping page " + str(page) + "******'\n")
 
         # vgchartz website is really weird so we have to search for
         # <a> tags with game urls
         game_tags = list(filter(
-            lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'),
-            # discard the first 10 elements because those
-            # links are in the navigation bar
-            soup.find_all("a")
-        ))[10:]
+            lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'), soup.find_all("a")))[10:]
+        # discard the first 10 elements because those
+        # links are in the navigation bar
 
         parse_games(game_tags)
+        print('\n******begin scraping for Genre and Rating******\n')
         df = retry_game(df)
 
+    failed_games = len(df[df['status'] == 0])
+    print("******Finished scraping games, will try to scrape missing data******")
+    # 36 hours max, should be enough to scrape everything
+    t_end = start_time + 60 * 60 * 36
+    while True:
+        if failed_games == 0 or time.time() > t_end:
+            break
+        df = process_games(df)
         failed_games = len(df[df['status'] == 0])
-    while failed_games > 0 :# or 300 - (time.time() - start_time) % 60 == 300:  # change to one day timing does not work for some reason!
-        # every worker can have 100 games at max
-        NUM_WORKERS = int(np.ceil(failed_games/100))
-        df_subsets = np.array_split(df[df['status'] == 0], NUM_WORKERS)
-        pool = Pool(processes=NUM_WORKERS)
-        df_updated = pd.concat(pool.map(retry_game, df_subsets))
-        df = pd.concat([df[df['status'] == 1], df_updated])
-        pool.close()
-        pool.join()
-        failed_games = len(df[df['status'] == 0])
-        print('Number of not scraped yet:', failed_games)
-        time.sleep(30)
-        
+        print('Number of not scraped yet:', failed_games, '\n')
+        time.sleep(60)  # wait for 1 minute for the server to recover?
+
     elapsed_time = time.time() - start_time
-    print("Scraped", rec_count, "games in", round(elapsed_time, 2), "seconds.")
+    print("Scraped", rec_count, "games in",
+          round(elapsed_time/60, 2), "minutes.")
 
     # select only these columns in the final dataset
     df = df.sort_index()
+    df.to_csv('complete-vgchartz', sep=",", encoding='utf-8', index=False)
     df_final = df[[
         'Rank', 'Name', 'Platform', 'Year', 'Genre', 'ESRB_Rating',
         'Publisher', 'Developer', 'Critic_Score', 'User_Score',
