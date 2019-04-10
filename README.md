@@ -17,6 +17,17 @@ unidecode
 user_agent
 ```
 
-Thanks to Chris Albon.
-http://chrisalbon.com/python/beautiful_soup_scrape_table.html
-https://www.kdnuggets.com/2018/02/web-scraping-tutorial-python.html
+Thanks to:
+- https://www.kdnuggets.com/2018/02/web-scraping-tutorial-python.html
+- http://python.omics.wiki/multiprocessing_map/multiprocessing_partial_function_multiple_arguments
+- https://medium.com/datadriveninvestor/speed-up-web-scraping-using-multiprocessing-in-python-af434ff310c5
+
+
+Free proxies:
+[1](https://proxyscrape.com/free-proxy-list)
+[2](http://multiproxy.org/txt_all/proxy.txt)
+[3](https://proxy.rudnkh.me/txt)
+[4](https://www.us-proxy.org/)
+
+- [ ] convert the script to a class or use scrapy, reference
+https://edmundmartin.com/multi-threaded-crawler-in-python/
