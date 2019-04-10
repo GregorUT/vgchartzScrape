@@ -5,17 +5,21 @@ from itertools import cycle
 
 
 def get_proxies(num=None):
-    url = 'https://free-proxy-list.net/'
-    response = requests.get(url)
-    parser = fromstring(response.text)
-    proxies = list(requests.get('https://proxy.rudnkh.me/txt').text.split())
-    for i in parser.xpath('//tbody/tr'):
-        if i.xpath('.//td[7][contains(text(),"yes")]'):
-            proxy = ":".join([i.xpath('.//td[1]/text()')[0], i.xpath('.//td[2]/text()')[0]])
-            proxies.append(proxy)
-    print('Found', len(proxies), 'proxies, testing them now')
+    # url = 'https://free-proxy-list.net/'
+    # response = requests.get(url)
+    # parser = fromstring(response.text)
+    # proxies = list(requests.get('https://proxy.rudnkh.me/txt').text.split())
+    # for i in parser.xpath('//tbody/tr'):
+    #     if i.xpath('.//td[7][contains(text(),"yes")]'):
+    #         proxy = ":".join([i.xpath('.//td[1]/text()')[0], i.xpath('.//td[2]/text()')[0]])
+    #         proxies.append(proxy)
     # proxies = list(requests.get(
     #     'http://multiproxy.org/txt_all/proxy.txt').text.split())
+    link = "https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=1000&country=all&ssl=all&anonymity=all&uptime=100"
+    proxies = list(requests.get(link).text.split())
+    np.random.shuffle(proxies)
+    print('Found', len(proxies), 'proxies, testing them now')
+
     if num is None:
         num = len(proxies)
     tested = test_proxies(proxies, num)
@@ -42,8 +46,8 @@ def test_proxies(proxies, num):
     return working_proxies
 
 
-#proxies = get_proxies(5)
-# with open('proxies.txt') as f:
-#         proxies = f.read().splitlines()
-# test_proxies(proxies, 10)
+# proxies = get_proxies(5)
+# # with open('proxies.txt') as f:
+# #         proxies = f.read().splitlines()
+# # test_proxies(proxies, 10)
 # print(proxies)

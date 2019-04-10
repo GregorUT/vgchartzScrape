@@ -9,7 +9,8 @@ from proxies_gen import get_proxies, test_proxies
 from itertools import cycle
 from lxml.html import fromstring
 from multiprocessing import Pool  # This is a thread-based Pool
-from requests.exceptions import ConnectionError, Timeout, ProxyError
+from requests.exceptions import ConnectionError, Timeout, ProxyError, RequestException
+from urllib3.exceptions import ProtocolError
 import sys
 sys.setrecursionlimit(10000)  # need to optimize code.
 proxy_enabled = True
@@ -86,11 +87,7 @@ def parse_genre_esrb(df):
     if proxy_enabled:
         print("\n******getting list of proxies and testing them******'\n")
         # this an api call which returns a list of working proxies that get checked evrey 15 minutes
-        link = "https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=1000&country=all&ssl=all&anonymity=all&uptime=100"
-        proxies = list(requests.get(link).text.split())
-        # return 5 (at max) working proxies for every worker
-        proxies = test_proxies(np.random.choice(proxies, 30, replace=False), 5)
-        proxies = cycle(proxies)
+        proxies = cycle(get_proxies(10))
         proxy = next(proxies)
 
     for index, row in df.iterrows():
@@ -124,10 +121,12 @@ def parse_genre_esrb(df):
         except(ProxyError):
             proxy = next(proxies)
 
-        except (ConnectionError, Timeout):
+        except (ConnectionError, Timeout, ProtocolError):
             print('Something went wrong while connecting to',
                   df.at[index, 'Name'], 'url, will try again later')
 
+        except Exception as e:
+            print('different error occurred while connecting, will pass')
         # wait for 2 seconds between every call,
         # we do not want to get blocked or abuse the server
         time.sleep(2)
@@ -183,34 +182,64 @@ if __name__ == "__main__":
         "//th[@colspan='3']/text()")[0].split('(', 1)[1].split(')')[0]
     pages = int(np.ceil(int(x.replace(',', ""))/1000))
 
-    for page in range(1, pages):  # pages = 2 for debugging!
-        surl = urlhead + str(page) + urltail
-        r = requests.get(surl).text
-        soup = BeautifulSoup(r, 'lxml')
-        print("******Scraping page " + str(page) + "******'\n")
+    page = 1
+    proxy = get_proxies(1)
+    while page <= pages:
+        try:
+            headers = {'User-Agent': generate_user_agent(
+                device_type='desktop', os=('mac', 'linux'))}
+            surl = urlhead + str(page) + urltail
+            r = requests.get(surl, headers=headers, proxies={
+                            'http': proxy, 'https': proxy}, timeout=10)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, 'lxml')
+                print("******Scraping page " + str(page) + "******'\n")
 
-        # vgchartz website is really weird so we have to search for
-        # <a> tags with game urls
-        game_tags = list(filter(
-            lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'), soup.find_all("a")))[10:]
-        # discard the first 10 elements because those
-        # links are in the navigation bar
+                # vgchartz website is really weird so we have to search for
+                # <a> tags with game urls
+                game_tags = list(filter(
+                    lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'), soup.find_all("a")))[10:]
+                # discard the first 10 elements because those
+                # links are in the navigation bar
 
-        parse_games(game_tags)
-        print('\n******begin scraping for Genre and Rating******\n')
-        df = process_games(df)
+                parse_games(game_tags)
+                print('\n******begin scraping for Genre and Rating******\n')
+                df = process_games(df)
+                page += 1
+
+        except (ConnectionError, Timeout, ProxyError, RequestException, ProtocolError):
+            print('Something went wrong while connecting to page: ',
+                page, ', will try again later')
+            proxy = get_proxies(1)
+            time.sleep(60)
+
+        except Exception as e:
+            print("something went wrong! We're on page: " +
+                str(page) + '\nSaving successfully crawled data')
+            print("Exception: ", e)
+            df.to_csv('before_crashing_'+csvfilename, sep=",",
+                    encoding='utf-8', index=False)
+            raise e
+
 
     failed_games = len(df[df['status'] == 0])
     print("******Finished scraping games, will try to scrape missing data******")
     # 36 hours max, should be enough to scrape everything
     t_end = start_time + 60 * 60 * 36
     while True:
-        if failed_games == 0 or time.time() > t_end:
-            break
-        df = process_games(df)
-        failed_games = len(df[df['status'] == 0])
-        print('Number of not scraped yet:', failed_games, '\n')
-        time.sleep(60)  # wait for 1 minute for the server to recover?
+        try:
+            if failed_games == 0 or time.time() > t_end:
+                break
+            df = process_games(df)
+            failed_games = len(df[df['status'] == 0])
+            print('Number of not scraped yet:', failed_games, '\n')
+            time.sleep(60)  # wait for 1 minute for the server to recover?
+        except Exception as e:
+            print("something went wrong! We're on page: " + str(page) + '\nSaving successfully crawled data')
+            print("Exception: ", e)
+            df.to_csv('before_crashing_'+csvfilename, sep=",",
+                    encoding='utf-8', index=False)
+            raise e
 
     elapsed_time = time.time() - start_time
     print("Scraped", rec_count, "games in",
