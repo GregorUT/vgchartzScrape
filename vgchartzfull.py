@@ -12,7 +12,7 @@ from multiprocessing import Pool  # This is a thread-based Pool
 from requests.exceptions import ConnectionError, Timeout, ProxyError
 import sys
 sys.setrecursionlimit(10000)  # need to optimize code.
-proxy_enabled = False
+proxy_enabled = True
 
 
 def parse_games(game_tags):

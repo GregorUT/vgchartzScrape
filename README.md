@@ -1,6 +1,6 @@
 
 vgchartzfull is a python script with multiprocessing based on BeautifulSoup.
-proxies are implemented in the script but it is disabled due to free proxies are unreliable and could results in running the program longer. It can be enabled by changing it to True
+proxies are implemented in the script, it can be disabled by changing it to False
 
 It creates a dataset based on data from 
 http://www.vgchartz.com/gamedb/
