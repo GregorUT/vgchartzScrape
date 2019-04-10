@@ -12,6 +12,7 @@ from multiprocessing import Pool  # This is a thread-based Pool
 from requests.exceptions import ConnectionError, Timeout, ProxyError, RequestException
 from urllib3.exceptions import ProtocolError
 import sys
+import os
 sys.setrecursionlimit(10000)  # need to optimize code.
 proxy_enabled = True
 
@@ -147,8 +148,9 @@ if __name__ == "__main__":
         df_subsets = np.array_split(df[df['status'] == 0], NUM_WORKERS)
         pool = Pool(processes=NUM_WORKERS)
         results = pool.map(retry_game, df_subsets)
-        df_updated = pd.concat(results)
-        df = pd.concat([df[df['status'] == 1], df_updated])
+        if None not in results:
+            df_updated = pd.concat(results)
+            df = pd.concat([df[df['status'] == 1], df_updated])
         pool.close()
         pool.join()
         return df
@@ -156,18 +158,27 @@ if __name__ == "__main__":
     rec_count = 0
     start_time = time.time()
     current_time = time.time()
-    csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
+    crashed_tag = 'before_crashing_'
+    exists = [s for s in os.listdir() if crashed_tag in s]
+    if exists:
+        csvfilename = exists[0].replace(crashed_tag, '')
+        df = pd.read_csv(exists[0])
+        page = int(len(df)/1000)
+        df = process_games(df)
+    else:
+        csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
 
     # initialize a panda dataframe to store all games with the following columns:
     # rank, name, img-url, vgchartz score, genre, ESRB rating, platform, developer,
     # publisher, release year, critic score, user score, na sales, pal sales,
     # jp sales, other sales, total sales, total shipped, last update, url, status
     # last two columns for debugging
-    df = pd.DataFrame(columns=[
-        'Rank', 'Name', 'basename', 'Genre', 'ESRB_Rating', 'Platform', 'Publisher',
-        'Developer', 'VGChartz_Score', 'Critic_Score', 'User_Score',
-        'Total_Shipped', 'Global_Sales', 'NA_Sales', 'PAL_Sales', 'JP_Sales',
-        'Other_Sales', 'Year', 'Last_Update', 'url', 'status'])
+    if not exists:
+        df = pd.DataFrame(columns=[
+            'Rank', 'Name', 'basename', 'Genre', 'ESRB_Rating', 'Platform', 'Publisher',
+            'Developer', 'VGChartz_Score', 'Critic_Score', 'User_Score',
+            'Total_Shipped', 'Global_Sales', 'NA_Sales', 'PAL_Sales', 'JP_Sales',
+            'Other_Sales', 'Year', 'Last_Update', 'url', 'status'])
 
     urlhead = 'http://www.vgchartz.com/games/games.php?page='
     urltail = '&results=1000&name=&console=&keyword=&publisher=&genre=&order=Sales&ownership=Both'
@@ -182,7 +193,7 @@ if __name__ == "__main__":
         "//th[@colspan='3']/text()")[0].split('(', 1)[1].split(')')[0]
     pages = int(np.ceil(int(x.replace(',', ""))/1000))
 
-    page = 1
+    if not exists: page = 1
     proxy = get_proxies(1)
     while page <= pages:
         try:

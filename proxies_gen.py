@@ -13,11 +13,13 @@ def get_proxies(num=None):
     #     if i.xpath('.//td[7][contains(text(),"yes")]'):
     #         proxy = ":".join([i.xpath('.//td[1]/text()')[0], i.xpath('.//td[2]/text()')[0]])
     #         proxies.append(proxy)
-    # proxies = list(requests.get(
-    #     'http://multiproxy.org/txt_all/proxy.txt').text.split())
+
     link = "https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=1000&country=all&ssl=all&anonymity=all&uptime=100"
     proxies = list(requests.get(link).text.split())
     np.random.shuffle(proxies)
+    if len(proxies) == 0:
+        proxies = list(requests.get(
+        'http://multiproxy.org/txt_all/proxy.txt').text.split())
     print('Found', len(proxies), 'proxies, testing them now')
 
     if num is None:
