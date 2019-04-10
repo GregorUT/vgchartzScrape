@@ -163,7 +163,7 @@ if __name__ == "__main__":
     if exists:
         csvfilename = exists[0].replace(crashed_tag, '')
         df = pd.read_csv(exists[0])
-        page = int(len(df)/1000)
+        page = int(len(df)/1000) + 1 # because we already scraped current page
         df = process_games(df)
     else:
         csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
