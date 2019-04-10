@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
         parse_games(game_tags)
         print('\n******begin scraping for Genre and Rating******\n')
-        df = retry_game(df)
+        df = process_games(df)
 
     failed_games = len(df[df['status'] == 0])
     print("******Finished scraping games, will try to scrape missing data******")
