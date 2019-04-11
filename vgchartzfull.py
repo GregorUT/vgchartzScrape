@@ -8,7 +8,7 @@ from user_agent import generate_user_agent
 from proxies_gen import get_proxies, test_proxies
 from itertools import cycle
 from lxml.html import fromstring
-from multiprocessing import Pool  # This is a thread-based Pool
+from multiprocessing import Pool, cpu_count  # This is a thread-based Pool
 from requests.exceptions import ConnectionError, Timeout, ProxyError, RequestException
 from urllib3.exceptions import ProtocolError
 import sys
@@ -87,7 +87,7 @@ def parse_genre_esrb(df):
     if proxy_enabled:
         print("\n******getting list of proxies and testing them******'\n")
         # this an api call which returns a list of working proxies that get checked evrey 15 minutes
-        proxies = cycle(get_proxies(10))
+        proxies = cycle(get_proxies(5))
         proxy = next(proxies)
 
     for index, row in df.iterrows():
@@ -138,10 +138,11 @@ def retry_game(df):
 if __name__ == "__main__":
     def process_games(df):
         failed_games = len(df[df['status'] == 0])
-        NUM_WORKERS = int(np.ceil(failed_games/100)) + 1
-        if NUM_WORKERS > 24:
-            NUM_WORKERS = 24  # trying to keep it to max 24 workers at every run
+        NUM_WORKERS = cpu_count() * 2
         df_subsets = np.array_split(df[df['status'] == 0], NUM_WORKERS)
+        #update num_workers
+        df_subsets = [i for i in df_subsets if len(i) != 0]
+        NUM_WORKERS = len(df_subsets) # we don't want to have a worker for empty subsets
         pool = Pool(processes=NUM_WORKERS)
         results = pool.map(retry_game, df_subsets)
         try:
@@ -190,10 +191,12 @@ if __name__ == "__main__":
     vglink = requests.get('http://www.vgchartz.com/gamedb/').text
     x = fromstring(vglink).xpath(
         "//th[@colspan='3']/text()")[0].split('(', 1)[1].split(')')[0]
-    pages = int(np.ceil(int(x.replace(',', ""))/1000))
+    pages = int(x.split(',')[0])
 
     if not exists: page = 1
-    while page <= pages:
+    while True:
+        if page > pages:
+            break
         try:
             proxy = get_proxies(1)[0]
             headers = {'User-Agent': generate_user_agent(
@@ -238,10 +241,10 @@ if __name__ == "__main__":
     t_end = start_time + 60 * 60 * 36
     while True:
         try:
-            if failed_games == 0 or time.time() > t_end:
-                break
             df = process_games(df)
             failed_games = len(df[df['status'] == 0])
+            if failed_games == 0 or time.time() > t_end:
+                break
             print('Number of not scraped yet:', failed_games, '\n')
             time.sleep(60)  # wait for 1 minute for the server to recover?
         except Exception as e:
@@ -256,7 +259,7 @@ if __name__ == "__main__":
 
     # select only these columns in the final dataset
     df = df.sort_index()
-    df.to_csv('complete-vgchartz', sep=",", encoding='utf-8', index=False)
+    df.to_csv('complete-vgchartz.csv', sep=",", encoding='utf-8', index=False)
     df_final = df[[
         'Rank', 'Name', 'Platform', 'Year', 'Genre', 'ESRB_Rating',
         'Publisher', 'Developer', 'Critic_Score', 'User_Score',

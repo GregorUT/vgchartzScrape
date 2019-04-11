@@ -20,9 +20,9 @@ def get_proxies(num=None):
     proxies = []
     if len(proxies) == 0:
         proxies = list(requests.get(
-            link[:-3]+'99').text.split()) # change uptime to 99
+            link[:-3]+'99').text.split())  # change uptime to 99
         np.random.shuffle(proxies)
-    print('Found', len(proxies), 'proxies, testing them now')
+    # print('Found', len(proxies), 'proxies, testing them now')
 
     if num is None:
         num = len(proxies)
@@ -35,22 +35,25 @@ def test_proxies(proxies, num):
     proxy_pool = cycle(proxies)
     working_proxies = []
     for i in range(1, len(proxies)):
-        if num == 0: break
+        if num == 0:
+            break
         # Get a proxy from the pool
         proxy = next(proxy_pool)
-        print("Request #%d" % i)
+        # print("Request #%d" % i)
         try:
-            response = requests.get(url, proxies={"http": proxy, "https": proxy}, timeout = 1)
-            print(response.json())
+            response = requests.get(
+                url, proxies={"http": proxy, "https": proxy}, timeout=1)
+            # print(response.json())
             working_proxies.append(proxy)
             num -= 1
         except:
             # Most free proxies will often get connection errors. You will have retry the entire request using another proxy to work.
-            print("Skipping. Connnection error")
+            # print("Skipping. Connnection error")
+            pass
     return working_proxies
 
 
-proxies = get_proxies(5)
+# proxies = get_proxies(5)
 # # with open('proxies.txt') as f:
 # #         proxies = f.read().splitlines()
 # # test_proxies(proxies, 10)

@@ -34,7 +34,8 @@ Free proxies:
 - [x] handling couple of exceptions
 - [x] scraped data gets saved before raising an unexpected error
 - [x] add the option to continue where we left off due to an unexpected error
-- [ ] convert the script to a class or use scrapy, reference
+- [x] clean version removes the print statements, should results in better performance!
 - [ ] optimize it
 - [ ] create a log file
+- [ ] convert the script to a class or use scrapy, reference
     - https://edmundmartin.com/multi-threaded-crawler-in-python/
