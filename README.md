@@ -35,4 +35,6 @@ Free proxies:
 - [x] scraped data gets saved before raising an unexpected error
 - [x] add the option to continue where we left off due to an unexpected error
 - [ ] convert the script to a class or use scrapy, reference
+- [ ] optimize it
+- [ ] create a log file
     - https://edmundmartin.com/multi-threaded-crawler-in-python/

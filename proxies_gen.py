@@ -17,9 +17,11 @@ def get_proxies(num=None):
     link = "https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=1000&country=all&ssl=all&anonymity=all&uptime=100"
     proxies = list(requests.get(link).text.split())
     np.random.shuffle(proxies)
+    proxies = []
     if len(proxies) == 0:
         proxies = list(requests.get(
-        'http://multiproxy.org/txt_all/proxy.txt').text.split())
+            link[:-3]+'99').text.split()) # change uptime to 99
+        np.random.shuffle(proxies)
     print('Found', len(proxies), 'proxies, testing them now')
 
     if num is None:
@@ -48,7 +50,7 @@ def test_proxies(proxies, num):
     return working_proxies
 
 
-# proxies = get_proxies(5)
+proxies = get_proxies(5)
 # # with open('proxies.txt') as f:
 # #         proxies = f.read().splitlines()
 # # test_proxies(proxies, 10)

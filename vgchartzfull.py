@@ -29,8 +29,7 @@ def parse_games(game_tags):
     for tag in game_tags:
         game = {}
         game["Name"] = " ".join(tag.string.split())
-        print(rec_count+1, 'Fetch Data for game',
-              unidecode.unidecode(game['Name']))
+        print(rec_count+1, 'Fetch Data for game', unidecode.unidecode(game['Name']))
 
         data = tag.parent.parent.find_all("td")
         if data:
@@ -71,7 +70,7 @@ def parse_games(game_tags):
                     year_to_add = np.int32("19" + year)
                 else:
                     year_to_add = np.int32("20" + year)
-            game["Year"] = year_to_add
+                game["Year"] = year_to_add
             game["Last_Update"] = data[16].get_text().strip()
             game['Genre'] = 'N/A'
             game['ESRB_Rating'] = 'N/A'
@@ -93,8 +92,7 @@ def parse_genre_esrb(df):
 
     for index, row in df.iterrows():
         try:
-            game_page = requests.get(df.at[index, 'url'], headers=headers, proxies={
-                                     "http": proxy, "https": proxy}, timeout=5)
+            game_page = requests.get(df.at[index, 'url'], headers=headers, proxies={"http": proxy, "https": proxy}, timeout=5)
             if game_page.status_code == 200:
                 sub_soup = BeautifulSoup(game_page.text, "lxml")
                 # again, the info box is inconsistent among games so we
@@ -116,15 +114,13 @@ def parse_genre_esrb(df):
                         '_')[1].split('.')[0].upper()
                 # we successfuly got the genre and rating
                 df.loc[index, 'status'] = 1
-                print('Successfully scraped genre and rating for :',
-                      df.at[index, 'Name'])
+                print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
 
         except(ProxyError):
             proxy = next(proxies)
 
         except (ConnectionError, Timeout, ProtocolError):
-            print('Something went wrong while connecting to',
-                  df.at[index, 'Name'], 'url, will try again later')
+            print('Something went wrong while connecting to', df.at[index, 'Name'], 'url, will try again later')
 
         except Exception as e:
             print('different error occurred while connecting, will pass')
@@ -148,9 +144,11 @@ if __name__ == "__main__":
         df_subsets = np.array_split(df[df['status'] == 0], NUM_WORKERS)
         pool = Pool(processes=NUM_WORKERS)
         results = pool.map(retry_game, df_subsets)
-        if None not in results:
+        try:
             df_updated = pd.concat(results)
             df = pd.concat([df[df['status'] == 1], df_updated])
+        except: 
+            print('error occurred while joining dataframe')
         pool.close()
         pool.join()
         return df
@@ -163,7 +161,8 @@ if __name__ == "__main__":
     if exists:
         csvfilename = exists[0].replace(crashed_tag, '')
         df = pd.read_csv(exists[0])
-        page = int(len(df)/1000) + 1 # because we already scraped current page
+        rec_count = len(df)
+        page = int(rec_count/1000) + 1 # because we already scraped current 
         df = process_games(df)
     else:
         csvfilename = "vgsales-" + time.strftime("%Y-%m-%d_%H_%M_%S") + ".csv"
@@ -188,15 +187,15 @@ if __name__ == "__main__":
     urltail += '&showvgchartzscore=1&showcriticscore=1&showuserscore=1&showshipped=1&alphasort=&showmultiplat=Yes&showgenre=1'
 
     # get the number of pages
-    page = requests.get('http://www.vgchartz.com/gamedb/').text
-    x = fromstring(page).xpath(
+    vglink = requests.get('http://www.vgchartz.com/gamedb/').text
+    x = fromstring(vglink).xpath(
         "//th[@colspan='3']/text()")[0].split('(', 1)[1].split(')')[0]
     pages = int(np.ceil(int(x.replace(',', ""))/1000))
 
     if not exists: page = 1
-    proxy = get_proxies(1)
     while page <= pages:
         try:
+            proxy = get_proxies(1)[0]
             headers = {'User-Agent': generate_user_agent(
                 device_type='desktop', os=('mac', 'linux'))}
             surl = urlhead + str(page) + urltail
@@ -221,14 +220,14 @@ if __name__ == "__main__":
         except (ConnectionError, Timeout, ProxyError, RequestException, ProtocolError):
             print('Something went wrong while connecting to page: ',
                 page, ', will try again later')
-            proxy = get_proxies(1)
+            #proxy = get_proxies(1)
             time.sleep(60)
 
         except Exception as e:
             print("something went wrong! We're on page: " +
                 str(page) + '\nSaving successfully crawled data')
             print("Exception: ", e)
-            df.to_csv('before_crashing_'+csvfilename, sep=",",
+            df.to_csv(crashed_tag + csvfilename, sep=",",
                     encoding='utf-8', index=False)
             raise e
 
@@ -248,13 +247,12 @@ if __name__ == "__main__":
         except Exception as e:
             print("something went wrong! We're on page: " + str(page) + '\nSaving successfully crawled data')
             print("Exception: ", e)
-            df.to_csv('before_crashing_'+csvfilename, sep=",",
+            df.to_csv(crashed_tag + csvfilename, sep=",",
                     encoding='utf-8', index=False)
             raise e
 
     elapsed_time = time.time() - start_time
-    print("Scraped", rec_count, "games in",
-          round(elapsed_time/60, 2), "minutes.")
+    print("Scraped", rec_count, "games in", round(elapsed_time/60, 2), "minutes.")
 
     # select only these columns in the final dataset
     df = df.sort_index()
