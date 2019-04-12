@@ -85,7 +85,7 @@ def parse_genre_esrb(df):
         device_type='desktop', os=('mac', 'linux'))}
     proxy = {}
     if proxy_enabled:
-        print("\n******getting list of proxies and testing them******'\n")
+        #print("\n******getting list of proxies and testing them******'\n")
         # this an api call which returns a list of working proxies that get checked evrey 15 minutes
         proxies = cycle(get_proxies(5))
         proxy = next(proxies)
@@ -114,7 +114,7 @@ def parse_genre_esrb(df):
                         '_')[1].split('.')[0].upper()
                 # we successfuly got the genre and rating
                 df.loc[index, 'status'] = 1
-                print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
+                #print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
 
         except(ProxyError):
             proxy = next(proxies)
@@ -206,7 +206,7 @@ if __name__ == "__main__":
                             'http': proxy, 'https': proxy}, timeout=10)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.text, 'lxml')
-                print("******Scraping page " + str(page) + "******'\n")
+                #print("******Scraping page " + str(page) + "******'\n")
 
                 # vgchartz website is really weird so we have to search for
                 # <a> tags with game urls
@@ -216,7 +216,7 @@ if __name__ == "__main__":
                 # links are in the navigation bar
 
                 parse_games(game_tags)
-                print('\n******begin scraping for Genre and Rating******\n')
+                #print('\n******begin scraping for Genre and Rating******\n')
                 df = process_games(df)
                 page += 1
 
@@ -245,7 +245,7 @@ if __name__ == "__main__":
             failed_games = len(df[df['status'] == 0])
             if failed_games == 0 or time.time() > t_end:
                 break
-            print('Number of not scraped yet:', failed_games, '\n')
+            #print('Number of not scraped yet:', failed_games, '\n')
             time.sleep(60)  # wait for 1 minute for the server to recover?
         except Exception as e:
             print("something went wrong! We're on page: " + str(page) + '\nSaving successfully crawled data')
