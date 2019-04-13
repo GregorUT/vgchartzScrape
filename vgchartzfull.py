@@ -66,7 +66,7 @@ def parse_games(game_tags):
             if year.startswith('N/A'):
                 game["Year"] = 'N/A'
             else:
-                if int(year) >= 80:
+                if int(year) >= 70:
                     year_to_add = np.int32("19" + year)
                 else:
                     year_to_add = np.int32("20" + year)
@@ -124,9 +124,9 @@ def parse_genre_esrb(df):
 
         except Exception as e:
             print('different error occurred while connecting, will pass')
-        # wait for 2 seconds between every call,
+        # wait for 1 seconds between every call,
         # we do not want to get blocked or abuse the server
-        time.sleep(2)
+        time.sleep(1)
     return df
 
 
@@ -160,9 +160,10 @@ if __name__ == "__main__":
     crashed_tag = 'before_crashing_'
     exists = [s for s in os.listdir() if crashed_tag in s]
     if exists:
+        print("found a data saved from a crash, will continue on it")
         csvfilename = exists[0].replace(crashed_tag, '')
         df = pd.read_csv(exists[0])
-        rec_count = len(df)
+        rec_count = df['Rank'].max()
         page = int(rec_count/1000) + 1 # because we already scraped current 
         df = process_games(df)
     else:
@@ -224,7 +225,7 @@ if __name__ == "__main__":
             print('Something went wrong while connecting to page: ',
                 page, ', will try again later')
             #proxy = get_proxies(1)
-            time.sleep(60)
+            time.sleep(10)
 
         except Exception as e:
             print("something went wrong! We're on page: " +
@@ -246,7 +247,7 @@ if __name__ == "__main__":
             if failed_games == 0 or time.time() > t_end:
                 break
             print('Number of not scraped yet:', failed_games, '\n')
-            time.sleep(60)  # wait for 1 minute for the server to recover?
+            time.sleep(10)  # wait for 10 seconds for the server to recover?
         except Exception as e:
             print("something went wrong! We're on page: " + str(page) + '\nSaving successfully crawled data')
             print("Exception: ", e)
