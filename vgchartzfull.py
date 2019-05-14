@@ -5,11 +5,21 @@ import numpy as np
 from random import randint, choice
 import time
 
-def create_random_header():
+
+def create_random_header(lb_major=1,
+                         ub_major=56,
+                         lb_minor=1,
+                         ub_minor=10):
+    """
+    Create a random user agent in order to better mimic user behaviour.
+    Optional parameters for defining the:
+    - range of browser's major version (lower and upper bound)
+    - range of browser's minor version (lower and upper bound)
+    """
     browsers = ["Mozilla", "Chrome"]
     os_list = ["Windows NT 6.1; Win64; x64", "X11; Linux x86_64"]
-    major_version = randint(1, 56)
-    minor_version = randint(1, 10)
+    major_version = randint(lb_major, ub_major)
+    minor_version = randint(lb_minor, ub_minor)
     chosen_browser = choice(browsers)
     chosen_os = choice(os_list)
 
@@ -21,16 +31,30 @@ def create_random_header():
     header = { 'User-Agent' :  user_agent}
     print(header)
     return header
-def get_page(url):
+
+
+def get_page(url,
+             lower_bound_sleep=6,
+             upper_bound_sleep=15):
+    """
+    Perform a GET request to the given URL and return results.
+    Add a wait logic that, combined with random header, will help avoiding
+    HTTP 429 error.
+    The optional parameters will allow further customization of waiting periods.
+    """
     header = create_random_header()
     request = urllib.request.Request(url, headers=header)
     result = urllib.request.urlopen(request).read()
-    time.sleep(randint(6,15))
+    time.sleep(randint(lower_bound_sleep, upper_bound_sleep))
     return result
-def get_genre():
-    # go to every individual website to get genre info
-    url_to_game = tag.attrs['href']
-    site_raw = urllib.request.urlopen(url_to_game).read()
+
+
+def get_genre(game_url):
+    """
+    Return the game genre retrieved from the given url
+    """
+
+    site_raw = get_page(game_url)
     sub_soup = BeautifulSoup(site_raw, "html.parser")
     # again, the info box is inconsistent among games so we
     # have to find all the h2 and traverse from that to the genre name
@@ -41,74 +65,60 @@ def get_genre():
     for h2 in h2s:
         if h2.string == 'Genre':
             temp_tag = h2
-    genre.append(temp_tag.next_sibling.string)
 
-def download_data():
-    rec_count = 0
-    for page in range(1, pages):
-        surl = urlhead + str(page) + urltail
-        current_page = get_page(surl)
-        soup = BeautifulSoup(current_page)
-        print(f"Page: {page}")
-
-        # vgchartz website is really weird so we have to search for
-        # <a> tags with game urls
-        game_tags = list(filter(
-            lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'),
-            # discard the first 10 elements because those
-            # links are in the navigation bar
-            soup.find_all("a")
-        ))[10:]
-
-        for tag in game_tags:
-
-            # add name to list
-            gname.append(" ".join(tag.string.split()))
-            print(f"{rec_count + 1} Fetch data for game {gname[-1]}")
-
-            # get different attributes
-            # traverse up the DOM tree
-            data = tag.parent.parent.find_all("td")
-            rank.append(np.int32(data[0].string))
-            platform.append(data[3].find('img').attrs['alt'])
-            publisher.append(data[4].string)
-            developer.append(data[5].string)
-            critic_score.append(
-                float(data[6].string) if
-                not data[6].string.startswith("N/A") else np.nan)
-            user_score.append(
-                float(data[7].string) if
-                not data[7].string.startswith("N/A") else np.nan)
-            sales_na.append(
-                float(data[9].string[:-1]) if
-                not data[9].string.startswith("N/A") else np.nan)
-            sales_pal.append(
-                float(data[10].string[:-1]) if
-                not data[10].string.startswith("N/A") else np.nan)
-            sales_jp.append(
-                float(data[11].string[:-1]) if
-                not data[11].string.startswith("N/A") else np.nan)
-            sales_ot.append(
-                float(data[12].string[:-1]) if
-                not data[12].string.startswith("N/A") else np.nan)
-            sales_gl.append(
-                float(data[8].string[:-1]) if
-                not data[8].string.startswith("N/A") else np.nan)
-            release_year = data[13].string.split()[-1]
-            # different format for year
-            if release_year.startswith('N/A'):
-                year.append('N/A')
-            else:
-                if int(release_year) >= 80:
-                    year_to_add = np.int32("19" + release_year)
-                else:
-                    year_to_add = np.int32("20" + release_year)
-                year.append(year_to_add)
+    genre_value = temp_tag.next_sibling.string
+    return genre_value
 
 
+def get_release_year(raw_year):
+    """
+    Return the release year of the given game in a 4 digit format or N/A.
+    """
+    if raw_year.startswith('N/A'):
+        final_year = 'N/A'
+    elif int(raw_year) >= 80:
+        final_year = np.int32("19" + raw_year)
+    else:
+        final_year = np.int32("20" + raw_year)
+    return final_year
 
-            rec_count += 1
 
+def add_current_game_data(current_critic_score,
+                          current_developer,
+                          current_gname,
+                          current_platform,
+                          current_publisher,
+                          current_rank,
+                          current_release_year,
+                          current_sales_gl,
+                          current_sales_jp,
+                          current_sales_na,
+                          current_sales_ot,
+                          current_sales_pal,
+                          current_user_score):
+
+    """
+    Add all the game data to the related lists
+    """
+    gname.append(current_gname)
+    rank.append(current_rank)
+    platform.append(current_platform)
+    publisher.append(current_publisher)
+    developer.append(current_developer)
+    critic_score.append(current_critic_score)
+    user_score.append(current_user_score)
+    sales_na.append(current_sales_na)
+    sales_pal.append(current_sales_pal)
+    sales_jp.append(current_sales_jp)
+    sales_ot.append(current_sales_ot)
+    sales_gl.append(current_sales_gl)
+    year.append(current_release_year)
+
+
+def save_games_data(filename = "vgsales.csv", separator=",", enc="utf-8"):
+    """
+    Save all the downloaded data into the specified file
+    """
     columns = {
         'Rank': rank,
         'Name': gname,
@@ -125,32 +135,87 @@ def download_data():
         'Other_Sales': sales_ot,
         'Global_Sales': sales_gl
     }
-    print(rec_count)
     df = pd.DataFrame(columns)
     print(df.columns)
     df = df[[
         'Rank', 'Name', 'Platform', 'Year', 'Genre',
         'Publisher', 'Developer', 'Critic_Score', 'User_Score',
         'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales', 'Global_Sales']]
-    df.to_csv("vgsales.csv", sep=",", encoding='utf-8', index=False)
+    df.to_csv(filename, sep=separator, encoding=enc, index=False)
+
+
+def download_data(start_page, end_page, download_genre=False):
+    """
+    Download games data from vgchartz: only data whose pages are in the range (start_page, end_page) will be downloaded
+    :param start_page:
+    :param end_page:
+    :param download_genre:
+    :return:
+    """
+    game_rank = 1 # Results are decreasingly ordered according to Shipped units
+    for page in range(start_page, end_page):
+        surl = urlhead + str(page) + urltail
+        current_page = get_page(surl)
+        soup = BeautifulSoup(current_page)
+        print(f"Page: {page}")
+
+        # vgchartz website is really weird so we have to search for
+        # <a> tags with game urls
+        game_tags = list(filter(
+            lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'),
+            # discard the first 10 elements because those
+            # links are in the navigation bar
+            soup.find_all("a")
+        ))[10:]
+
+        for tag in game_tags:
+
+            current_gname = " ".join(tag.string.split()) # add game name to list
+            print(f"{game_rank} Fetch data for game {current_gname}")
+
+            # Get different attributes
+            # traverse up the DOM tree
+            data = tag.parent.parent.find_all("td")
+            current_rank = np.int32(data[0].string)
+            current_platform = data[3].find('img').attrs['alt']
+            current_publisher = data[4].string
+            current_developer = data[5].string
+            current_critic_score = float(data[6].string) if not data[6].string.startswith("N/A") else np.nan
+            current_user_score = float(data[7].string) if not data[7].string.startswith("N/A") else np.nan
+            current_sales_na = float(data[9].string[:-1]) if not data[9].string.startswith("N/A") else np.nan
+            current_sales_pal = float(data[10].string[:-1]) if not data[10].string.startswith("N/A") else np.nan
+            current_sales_jp = float(data[11].string[:-1]) if not data[11].string.startswith("N/A") else np.nan
+            current_sales_ot = float(data[12].string[:-1]) if not data[12].string.startswith("N/A") else np.nan
+            current_sales_gl = float(data[8].string[:-1]) if not data[8].string.startswith("N/A") else np.nan
+            current_release_year = get_release_year(data[13].string.split()[-1])
+
+            add_current_game_data(current_critic_score, current_developer, current_gname, current_platform,
+                                  current_publisher, current_rank, current_release_year, current_sales_gl,
+                                  current_sales_jp, current_sales_na,current_sales_ot, current_sales_pal,
+                                  current_user_score)
+
+            game_url = tag.attrs['href']
+            game_genre = ""
+            if download_genre:
+                game_genre = get_genre(game_url)
+            genre.append(game_genre)
+
+            game_rank += 1
+
+    print("Number of downloaded resources: {}".format(game_rank))
+
 
 if __name__ == "__main__":
     pages = 19
-    rec_count = 0
     rank = []
     gname = []
     platform = []
     year = []
     genre = []
-    critic_score = []
-    user_score = []
+    critic_score, user_score = [], []
     publisher = []
     developer = []
-    sales_na = []
-    sales_pal = []
-    sales_jp = []
-    sales_ot = []
-    sales_gl = []
+    sales_na, sales_pal, sales_jp, sales_ot, sales_gl = [], [], [], [], []
 
     urlhead = 'http://www.vgchartz.com/gamedb/?page='
     urltail = '&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both'
@@ -158,4 +223,6 @@ if __name__ == "__main__":
     urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1'
     urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
     urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
-    download_data()
+    download_data(1, 2)
+    save_games_data()
+
