@@ -2,15 +2,17 @@ from bs4 import BeautifulSoup, element
 import urllib
 import pandas as pd
 import numpy as np
+from random import randint, choice
+import time
 
 def create_random_header():
     browsers = ["Mozilla", "Chrome"]
-    os = ["Windows NT 6.1; Win64; x64" "X11; Linux x86_64"],
+    os = ["Windows NT 6.1; Win64; x64", "X11; Linux x86_64"],
     #user_agent = 'Mozilla/{}.{} (Windows NT 6.1; Win64; x64)'.format(randint(1,56))
     major_version = randint(1, 56)
     minor_version = randint(1, 10)
-    chosen_browser = random.choice(browsers)
-    chosen_os = random.choice(os)
+    chosen_browser = choice(browsers)
+    chosen_os = choice(os)
 
     user_agent = '{}/{}.{} ({})'.format(
         chosen_browser,
@@ -46,8 +48,8 @@ def download_data():
     rec_count = 0
     for page in range(1, pages):
         surl = urlhead + str(page) + urltail
-        r = urllib.request.urlopen(surl).read()
-        soup = BeautifulSoup(r)
+        current_page = get_page(surl)
+        soup = BeautifulSoup(current_page)
         print(f"Page: {page}")
 
         # vgchartz website is really weird so we have to search for
