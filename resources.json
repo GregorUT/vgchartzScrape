@@ -1,0 +1,16 @@
+{
+  "output_filename": "vgsales.csv",
+  "separator": ",",
+  "encoding": "utf-8",
+  "start_page": 1,
+  "end_page": 2,
+  "include_genre": false,
+  "minimum_sleep_time": 6,
+  "maximum_sleep_time": 15,
+  "minimum_major_version": 1,
+  "maximum_major_version": 56,
+  "minimum_minor_version": 1,
+  "maximum_minor_version": 10,
+  "base_page_url": "http://www.vgchartz.com/gamedb/?page=",
+  "remaining_url": "&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both&results=1000&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1&showlastupdate=0&showothersales=1&showgenre=1&sort=GL"
+}
