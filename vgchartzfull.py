@@ -27,6 +27,30 @@ urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&s
 urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
 urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
 
+def create_random_header():
+    browsers = ["Mozilla", "Chrome"]
+    os = ["Windows NT 6.1; Win64; x64" "X11; Linux x86_64"],
+    #user_agent = 'Mozilla/{}.{} (Windows NT 6.1; Win64; x64)'.format(randint(1,56))
+    major_version = randint(1, 56)
+    minor_version = randint(1, 10)
+    chosen_browser = random.choice(browsers)
+    chosen_os = random.choice(os)
+
+    user_agent = '{}/{}.{} ({})'.format(
+        chosen_browser,
+        major_version,
+        minor_version,
+        chosen_os)
+    header = { 'User-Agent' :  user_agent}
+    print(header)
+    return header
+def get_page(url):
+    header = create_random_header()
+    request = urllib.request.Request(url, headers=header)
+    result = urllib.request.urlopen(request).read()
+    time.sleep(randint(6,15))
+    return result
+
 for page in range(1, pages):
     surl = urlhead + str(page) + urltail
     r = urllib.request.urlopen(surl).read()
