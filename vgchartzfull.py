@@ -7,12 +7,11 @@ import time
 
 def create_random_header():
     browsers = ["Mozilla", "Chrome"]
-    os = ["Windows NT 6.1; Win64; x64", "X11; Linux x86_64"],
-    #user_agent = 'Mozilla/{}.{} (Windows NT 6.1; Win64; x64)'.format(randint(1,56))
+    os_list = ["Windows NT 6.1; Win64; x64", "X11; Linux x86_64"]
     major_version = randint(1, 56)
     minor_version = randint(1, 10)
     chosen_browser = choice(browsers)
-    chosen_os = choice(os)
+    chosen_os = choice(os_list)
 
     user_agent = '{}/{}.{} ({})'.format(
         chosen_browser,
