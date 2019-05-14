@@ -4,22 +4,17 @@ import pandas as pd
 import numpy as np
 from random import randint, choice
 import time
+import json
 
 
-def create_random_header(lb_major=1,
-                         ub_major=56,
-                         lb_minor=1,
-                         ub_minor=10):
+def create_random_header():
     """
     Create a random user agent in order to better mimic user behaviour.
-    Optional parameters for defining the:
-    - range of browser's major version (lower and upper bound)
-    - range of browser's minor version (lower and upper bound)
     """
     browsers = ["Mozilla", "Chrome"]
     os_list = ["Windows NT 6.1; Win64; x64", "X11; Linux x86_64"]
-    major_version = randint(lb_major, ub_major)
-    minor_version = randint(lb_minor, ub_minor)
+    major_version = randint(properties['minimum_major_version'], properties['maximum_major_version'])
+    minor_version = randint(properties['minimum_minor_version'], properties['maximum_minor_version'])
     chosen_browser = choice(browsers)
     chosen_os = choice(os_list)
 
@@ -33,19 +28,16 @@ def create_random_header(lb_major=1,
     return header
 
 
-def get_page(url,
-             lower_bound_sleep=6,
-             upper_bound_sleep=15):
+def get_page(url):
     """
     Perform a GET request to the given URL and return results.
     Add a wait logic that, combined with random header, will help avoiding
     HTTP 429 error.
-    The optional parameters will allow further customization of waiting periods.
     """
     header = create_random_header()
     request = urllib.request.Request(url, headers=header)
     result = urllib.request.urlopen(request).read()
-    time.sleep(randint(lower_bound_sleep, upper_bound_sleep))
+    time.sleep(randint(properties['minimum_sleep_time'], properties['maximum_sleep_time']))
     return result
 
 
@@ -115,45 +107,16 @@ def add_current_game_data(current_critic_score,
     year.append(current_release_year)
 
 
-def save_games_data(filename = "vgsales.csv", separator=",", enc="utf-8"):
-    """
-    Save all the downloaded data into the specified file
-    """
-    columns = {
-        'Rank': rank,
-        'Name': gname,
-        'Platform': platform,
-        'Year': year,
-        'Genre': genre,
-        'Critic_Score': critic_score,
-        'User_Score': user_score,
-        'Publisher': publisher,
-        'Developer': developer,
-        'NA_Sales': sales_na,
-        'PAL_Sales': sales_pal,
-        'JP_Sales': sales_jp,
-        'Other_Sales': sales_ot,
-        'Global_Sales': sales_gl
-    }
-    df = pd.DataFrame(columns)
-    print(df.columns)
-    df = df[[
-        'Rank', 'Name', 'Platform', 'Year', 'Genre',
-        'Publisher', 'Developer', 'Critic_Score', 'User_Score',
-        'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales', 'Global_Sales']]
-    df.to_csv(filename, sep=separator, encoding=enc, index=False)
-
-
-def download_data(start_page, end_page, download_genre=False):
+def download_data(start_page, end_page, include_genre):
     """
     Download games data from vgchartz: only data whose pages are in the range (start_page, end_page) will be downloaded
     :param start_page:
     :param end_page:
-    :param download_genre:
+    :param include_genre:
     :return:
     """
     game_rank = 1 # Results are decreasingly ordered according to Shipped units
-    for page in range(start_page, end_page):
+    for page in range(start_page, end_page + 1):
         surl = urlhead + str(page) + urltail
         current_page = get_page(surl)
         soup = BeautifulSoup(current_page)
@@ -196,7 +159,7 @@ def download_data(start_page, end_page, download_genre=False):
 
             game_url = tag.attrs['href']
             game_genre = ""
-            if download_genre:
+            if include_genre:
                 game_genre = get_genre(game_url)
             genre.append(game_genre)
 
@@ -205,8 +168,36 @@ def download_data(start_page, end_page, download_genre=False):
     print("Number of downloaded resources: {}".format(game_rank))
 
 
+def save_games_data(filename, separator, enc):
+    """
+    Save all the downloaded data into the specified file
+    """
+    columns = {
+        'Rank': rank,
+        'Name': gname,
+        'Platform': platform,
+        'Year': year,
+        'Genre': genre,
+        'Critic_Score': critic_score,
+        'User_Score': user_score,
+        'Publisher': publisher,
+        'Developer': developer,
+        'NA_Sales': sales_na,
+        'PAL_Sales': sales_pal,
+        'JP_Sales': sales_jp,
+        'Other_Sales': sales_ot,
+        'Global_Sales': sales_gl
+    }
+    df = pd.DataFrame(columns)
+    print(df.columns)
+    df = df[[
+        'Rank', 'Name', 'Platform', 'Year', 'Genre',
+        'Publisher', 'Developer', 'Critic_Score', 'User_Score',
+        'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales', 'Global_Sales']]
+    df.to_csv(filename, sep=separator, encoding=enc, index=False)
+
+
 if __name__ == "__main__":
-    pages = 19
     rank = []
     gname = []
     platform = []
@@ -223,6 +214,12 @@ if __name__ == "__main__":
     urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1'
     urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
     urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
-    download_data(1, 2)
-    save_games_data()
+
+    properties = None
+
+    with open("resources.json") as file:
+        properties = json.load(file)
+    print(properties)
+    download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
+    save_games_data(properties['output_filename'], properties['separator'], properties['encoding'])
 
