@@ -117,7 +117,7 @@ def download_data(start_page, end_page, include_genre):
     """
     game_rank = 1 # Results are decreasingly ordered according to Shipped units
     for page in range(start_page, end_page + 1):
-        surl = urlhead + str(page) + urltail
+        surl = base_url + str(page) + remaining_url
         current_page = get_page(surl)
         soup = BeautifulSoup(current_page)
         print(f"Page: {page}")
@@ -208,18 +208,13 @@ if __name__ == "__main__":
     developer = []
     sales_na, sales_pal, sales_jp, sales_ot, sales_gl = [], [], [], [], []
 
-    urlhead = 'http://www.vgchartz.com/gamedb/?page='
-    urltail = '&console=&region=All&developer=&publisher=&genre=&boxart=Both&ownership=Both'
-    urltail += '&results=1000&order=Sales&showtotalsales=0&showtotalsales=1&showpublisher=0'
-    urltail += '&showpublisher=1&showvgchartzscore=0&shownasales=1&showdeveloper=1&showcriticscore=1'
-    urltail += '&showpalsales=0&showpalsales=1&showreleasedate=1&showuserscore=1&showjapansales=1'
-    urltail += '&showlastupdate=0&showothersales=1&showgenre=1&sort=GL'
-
     properties = None
 
     with open("resources.json") as file:
         properties = json.load(file)
     print(properties)
+    base_url = properties['base_page_url']
+    remaining_url = properties['remaining_url']
     download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
     save_games_data(properties['output_filename'], properties['separator'], properties['encoding'])
 
