@@ -5,6 +5,7 @@ import numpy as np
 from random import randint, choice
 import time
 import json
+import logging
 
 
 def create_random_header():
@@ -92,7 +93,7 @@ def add_current_game_data(current_critic_score,
     """
     Add all the game data to the related lists
     """
-    gname.append(current_gname)
+    game_name.append(current_gname)
     rank.append(current_rank)
     platform.append(current_platform)
     publisher.append(current_publisher)
@@ -174,7 +175,7 @@ def save_games_data(filename, separator, enc):
     """
     columns = {
         'Rank': rank,
-        'Name': gname,
+        'Name': game_name,
         'Platform': platform,
         'Year': year,
         'Genre': genre,
@@ -198,8 +199,10 @@ def save_games_data(filename, separator, enc):
 
 
 if __name__ == "__main__":
+
+
     rank = []
-    gname = []
+    game_name = []
     platform = []
     year = []
     genre = []
@@ -212,7 +215,12 @@ if __name__ == "__main__":
 
     with open("resources.json") as file:
         properties = json.load(file)
-    print(properties)
+
+    logging.basicConfig(filename=properties["application_log_filename"],
+                        filemode='w',
+                        format='%(asctime)s|%(name)s|%(levelname)s| %(message)s',
+                        datefmt='%d-%m-%y %H:%M:%S')
+    logging.warning('Application started')
     base_url = properties['base_page_url']
     remaining_url = properties['remaining_url']
     download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
