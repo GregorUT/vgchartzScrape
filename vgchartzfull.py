@@ -161,7 +161,7 @@ def download_data(start_page, end_page, include_genre):
         # vgchartz website is really weird so we have to search for
         # <a> tags with game urls
         game_tags = list(filter(
-            lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'),
+            lambda x: x.attrs['href'].startswith('https://www.vgchartz.com/game/'),
             # discard the first 10 elements because those
             # links are in the navigation bar
             soup.find_all("a")
