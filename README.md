@@ -14,7 +14,12 @@ It can be installed by pip.
 
 ```bash
 
+  # Install dependencies
   $> pip install -r requirements.txt
+  
+  # Run
+  $> python vgchartzfull.py
+  
 
 ```
 
