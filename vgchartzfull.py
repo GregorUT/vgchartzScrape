@@ -31,6 +31,20 @@ def create_random_header():
     logging.info("create_random_header <<<")
     return header
 
+def generate_remaining_url(*, query_parameters):
+    """
+    Generate an url with a list of videogames from the query params configured at resources.json
+    :return: Url with page number
+    """
+    logging.info("generate_remaining_url >>>")
+    reply=''
+    for param in query_parameters:
+        value=query_parameters.get(param, None)
+        reply += f"&{param}={value}" if value is not None else f"&{param}="
+    logging.debug(f"Url Generated: {base_url}?{reply}")
+    logging.info("generate_remaining_url <<<")
+    return reply
+
 def get_page(url):
     """
     Perform a GET request to the given URL and return results.
@@ -269,8 +283,10 @@ if __name__ == "__main__":
     try:
         logging.info('Application started')
         base_url = properties['base_page_url']
-        remaining_url = properties['remaining_url']
+        remaining_url=generate_remaining_url(query_parameters=properties['query_parameters'])
         download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
         save_games_data(properties['output_filename'], properties['separator'], properties['encoding'])
+
     except:
         print("Unexpected error:", sys.exc_info()[0])
+        pass
