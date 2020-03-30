@@ -50,5 +50,4 @@ It can be installed by pip.
 
 ## Greetings
 
-Thanks to Chris Albon & Gregor UT
-http://chrisalbon.com/python/beautiful_soup_scrape_table.html
+Thanks to [Chris Albon](http://chrisalbon.com/python/beautiful_soup_scrape_table.html) 
