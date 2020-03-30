@@ -1,4 +1,4 @@
-# vgchartzfull - A crawler to download and analyze Video Game Sales
+# vgchartzfull - A crawler to download data from Global Videogame Sales
 
 vgchartzfull.py is a python@3 script based on BeautifulSoup.
 
