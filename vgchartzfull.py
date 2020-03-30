@@ -45,7 +45,7 @@ def generate_remaining_url(*, query_parameters):
     logging.info("generate_remaining_url <<<")
     return reply
 
-def get_page(url):
+def get_page(*, url):
     """
     Perform a GET request to the given URL and return results.
     Add a wait logic that, combined with random header, will help avoiding
@@ -63,7 +63,7 @@ def get_page(url):
     return result
 
 
-def get_genre(game_url):
+def get_genre(*, game_url):
     """
     Return the game genre retrieved from the given url
     :param game_url:
@@ -71,7 +71,7 @@ def get_genre(game_url):
     """
     logging.info("get_genre >>>")
     logging.debug("Page to download: {}".format(game_url))
-    site_raw = get_page(game_url)
+    site_raw = get_page(url=game_url)
     sub_soup = BeautifulSoup(site_raw, "html.parser")
     # again, the info box is inconsistent among games so we
     # have to find all the h2 and traverse from that to the genre name
@@ -89,7 +89,7 @@ def get_genre(game_url):
     return genre_value
 
 
-def get_release_year(raw_year):
+def get_release_year(*, raw_year):
     """
     Return the release year of the given game in a 4 digit format or N/A.
     :param raw_year:
@@ -107,7 +107,8 @@ def get_release_year(raw_year):
     return final_year
 
 
-def add_current_game_data(current_critic_score,
+def add_current_game_data(*,
+                          current_critic_score,
                           current_developer,
                           current_game_name,
                           current_platform,
@@ -155,7 +156,7 @@ def add_current_game_data(current_critic_score,
     logging.info("add_current_game_data <<<")
 
 
-def download_data(start_page, end_page, include_genre):
+def download_data(*, start_page, end_page, include_genre):
     """
     Download games data from vgchartz: only data whose pages are in the range (start_page, end_page) will be downloaded
     :param start_page:
@@ -167,7 +168,7 @@ def download_data(start_page, end_page, include_genre):
     downloaded_games = 0  # Results are decreasingly ordered according to Shipped units
     for page in range(start_page, end_page + 1):
         page_url = "{}{}{}".format(base_url, str(page), remaining_url)
-        current_page = get_page(page_url)
+        current_page = get_page(url=page_url)
         soup = BeautifulSoup(current_page)
         logging.info("Downloaded page {}".format(page))
 
@@ -197,17 +198,27 @@ def download_data(start_page, end_page, include_genre):
             current_sales_jp = float(data[11].string[:-1]) if not data[11].string.startswith("N/A") else np.nan
             current_sales_ot = float(data[12].string[:-1]) if not data[12].string.startswith("N/A") else np.nan
             current_sales_gl = float(data[8].string[:-1]) if not data[8].string.startswith("N/A") else np.nan
-            current_release_year = get_release_year(data[13].string.split()[-1])
+            current_release_year = get_release_year(raw_year=data[13].string.split()[-1])
 
-            add_current_game_data(current_critic_score, current_developer, current_gname, current_platform,
-                                  current_publisher, current_rank, current_release_year, current_sales_gl,
-                                  current_sales_jp, current_sales_na, current_sales_ot, current_sales_pal,
-                                  current_user_score)
+            add_current_game_data(
+                current_critic_score=current_critic_score,
+                current_developer=current_developer,
+                current_game_name=current_gname,
+                current_platform=current_platform,
+                current_publisher=current_publisher,
+                current_rank=current_rank,
+                current_release_year=current_release_year,
+                current_sales_gl=current_sales_gl,
+                current_sales_jp=current_sales_jp,
+                current_sales_na=current_sales_na,
+                current_sales_ot=current_sales_ot,
+                current_sales_pal=current_sales_pal,
+                current_user_score=current_user_score)
 
             game_url = tag.attrs['href']
             game_genre = ""
             if include_genre:
-                game_genre = get_genre(game_url)
+                game_genre = get_genre(game_url=game_url)
             genre.append(game_genre)
 
             downloaded_games += 1
@@ -216,7 +227,7 @@ def download_data(start_page, end_page, include_genre):
     logging.info("download_data <<<")
 
 
-def save_games_data(filename, separator, enc):
+def save_games_data(*, filename, separator, enc):
     """
     Save all the downloaded data into the specified file
     :param filename
@@ -284,8 +295,16 @@ if __name__ == "__main__":
         logging.info('Application started')
         base_url = properties['base_page_url']
         remaining_url=generate_remaining_url(query_parameters=properties['query_parameters'])
-        download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
-        save_games_data(properties['output_filename'], properties['separator'], properties['encoding'])
+
+        download_data(
+            start_page=properties['start_page'],
+            end_page=properties['end_page'],
+            include_genre=properties['include_genre'])
+
+        save_games_data(
+            filename=properties['output_filename'],
+            separator=properties['separator'],
+            enc=properties['encoding'])
 
     except:
         print("Unexpected error:", sys.exc_info()[0])
