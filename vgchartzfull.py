@@ -1,12 +1,12 @@
 from bs4 import BeautifulSoup, element
-import urllib
+from random import randint, choice
 import pandas as pd
 import numpy as np
-from random import randint, choice
-import datetime
+import logging
+import urllib
+import sys
 import time
 import json
-import logging
 
 def create_random_header():
     """
@@ -30,59 +30,6 @@ def create_random_header():
     logging.debug("Current user_agent: {}".format(header))
     logging.info("create_random_header <<<")
     return header
-
-def generate_uri(*, page_number, page_size):
-    """
-
-    Generate the uri from page number
-
-    :param page_number:
-    :return:
-    """
-
-    urlhead = 'http://www.vgchartz.com/gamedb/?page='
-    # page_number... <= here comes the param received
-    urltail = f'&results={page_size}'
-    urltail += '&order=Sales'
-    urltail += '&region=All'
-    urltail += '&boxart=Both'
-    urltail += '&banner=Both'
-    urltail += '&ownership=Both'
-    urltail += '&keyword='
-    urltail += '&console='
-    urltail += '&developer='
-    urltail += '&publisher='
-    urltail += '&goty_year='
-    urltail += '&genre='
-    urltail += '&showmultiplat=No'
-    urltail += '&showtotalsales=0'
-    urltail += '&showtotalsales=1'
-    urltail += '&showpublisher=0'
-    urltail += '&showpublisher=1'
-    urltail += '&showvgchartzscore=0'
-    urltail += '&showvgchartzscore=1'
-    urltail += '&shownasales=0'
-    urltail += '&shownasales=1'
-    urltail += '&showdeveloper=0'
-    urltail += '&showdeveloper=1'
-    urltail += '&showcriticscore=0'
-    urltail += '&showcriticscore=1'
-    urltail += '&showpalsales=0'
-    urltail += '&showpalsales=1'
-    urltail += '&showreleasedate=0'
-    urltail += '&showreleasedate=1'
-    urltail += '&showuserscore=0'
-    urltail += '&showuserscore=1'
-    urltail += '&showjapansales=0'
-    urltail += '&showjapansales=1'
-    urltail += '&showlastupdate=0'
-    urltail += '&showlastupdate=1'
-    urltail += '&showothersales=0'
-    urltail += '&showothersales=1'
-    urltail += '&showshipped=0'
-    urltail += '&showshipped=1'
-
-    return urlhead + str(page_number) + urltail
 
 def get_page(url):
     """
@@ -210,8 +157,7 @@ def download_data(start_page, end_page, include_genre):
         soup = BeautifulSoup(current_page)
         logging.info("Downloaded page {}".format(page))
 
-        # vgchartz website is really weird so we have to search for
-        # <a> tags with game urls
+        # We locate the game through search <a> tags with game urls in the main table
         game_tags = list(filter(
             lambda x: x.attrs['href'].startswith('https://www.vgchartz.com/game/'),
             # discard the first 10 elements because those
@@ -224,8 +170,7 @@ def download_data(start_page, end_page, include_genre):
             current_gname = " ".join(tag.string.split())  # add game name to list
             logging.debug("Downloaded game: {}. Name: {}".format(downloaded_games + 1, current_gname))
 
-            # Get different attributes
-            # traverse up the DOM tree
+            # Get different attributes traverse up the DOM tree
             data = tag.parent.parent.find_all("td")
             current_rank = np.int32(data[0].string)
             current_platform = data[3].find('img').attrs['alt']
@@ -290,7 +235,6 @@ def save_games_data(filename, separator, enc):
     df.to_csv(filename, sep=separator, encoding=enc, index=False)
     logging.info("save_games_data <<<")
 
-
 if __name__ == "__main__":
     rank = []
     game_name = []
@@ -315,16 +259,18 @@ if __name__ == "__main__":
     # set up logging to console
     console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)
+
     # set a format which is simpler for console use
     formatter = logging.Formatter(fmt='%(asctime)s|%(name)s|%(levelname)s| %(message)s',
                                   datefmt="%d-%m-%Y %H:%M:%S")
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
 
-    logging.info('Application started')
-    base_url = properties['base_page_url']
-    remaining_url = properties['remaining_url']
-    download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
-    save_games_data(properties['output_filename'], properties['separator'], properties['encoding'])
-
-
+    try:
+        logging.info('Application started')
+        base_url = properties['base_page_url']
+        remaining_url = properties['remaining_url']
+        download_data(properties['start_page'], properties['end_page'], properties['include_genre'])
+        save_games_data(properties['output_filename'], properties['separator'], properties['encoding'])
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
