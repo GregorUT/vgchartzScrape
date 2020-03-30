@@ -143,8 +143,8 @@ def add_current_game_data(*,
     game_name.append(current_game_name)
     rank.append(current_rank)
     platform.append(current_platform)
-    publisher.append(current_publisher)
-    developer.append(current_developer)
+    publisher.append(current_publisher.strip())
+    developer.append(current_developer.strip())
     critic_score.append(current_critic_score)
     user_score.append(current_user_score)
     sales_na.append(current_sales_na)
@@ -169,7 +169,7 @@ def download_data(*, start_page, end_page, include_genre):
     for page in range(start_page, end_page + 1):
         page_url = "{}{}{}".format(base_url, str(page), remaining_url)
         current_page = get_page(url=page_url)
-        soup = BeautifulSoup(current_page)
+        soup = BeautifulSoup(current_page, features="html.parser")
         logging.info("Downloaded page {}".format(page))
 
         # We locate the game through search <a> tags with game urls in the main table
