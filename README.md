@@ -27,20 +27,34 @@ It can be installed by pip.
 
 ## Dictionary
 
+The dataset it's composed by this fields, and the data is collected with this [methodology](https://www.vgchartz.com/methodology.php).
+
 | Field | Description              |
 |-------|--------------------------|
 | Rank  | Ranking of overall sales |
 | Name | The games name |
-| Platform | Platform of the games release (i.e. PC,PS4, etc.) |
-| Year | Year of the game's release |
 | Genre | Genre of the game |
+| Platform | Platform of the games release (i.e. PC,PS4, etc.) |
+| Developer | Developer of the game | 
 | Publisher | Publisher of the game |
+| Vgchartz_Score | Score at VGcharz site | 
+| Critic_Score | Score at Critic | 
+| User_Score | Score by VGcharts users' site | 
+| Total_Shipped | Total worldwide shipments (in millions) | 
+| Total_Sales | Total worldwide sales (in millions) |
 | NA_Sales | Sales in North America (in millions) |
 | EU_Sales | Sales in Europe (in millions) |
 | JP_Sales | Sales in Japan (in millions) |
 | Other_Sales | Sales in the rest of the world (in millions) |
-| Global_Sales | Total worldwide sales. |
+| Release_Date | Year of the game's release |
+| Last_Update | Last update of this register |
 
+## TODO
+
+- [ ] Remap the columns according the selected values at resources.json
+- [ ] Add some unit testing
+- [ ] Dockerize (w/ alpine-python) to ease use and avoid intallations
+- [ ] Publish at Docker hub
 
 ## Links
 
