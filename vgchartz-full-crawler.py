@@ -92,71 +92,79 @@ def get_genre(*, game_url):
     logging.info("get_genre <<<")
     return genre_value
 
-
-def get_release_year(*, raw_year):
+def parse_number(*, number_string):
     """
-    Return the release year of the given game in a 4 digit format or N/A.
-    :param raw_year:
-    :return: Game Release year
+    Return string parsed to float with custom format for millions (m)
+    :param number_string:
+    :return: a float number right parsed
     """
-    logging.info("get_release_year >>>")
-    if raw_year.startswith('N/A'):
-        final_year = 'N/A'
-    elif int(raw_year) >= 80:
-        final_year = np.int32("19" + raw_year)
+    logging.info("parse_number >>>")
+    print(number_string)
+    if "m" in number_string:
+        reply = number_string.strip('m')
+        reply = str(float(reply) * 1000000)
     else:
-        final_year = np.int32("20" + raw_year)
-    logging.debug("Release Year: {}".format(final_year))
-    logging.info("get_release_year <<<")
-    return final_year
+        reply=number_string
 
+    logging.info("parse_number <<<")
+    return float(reply) if not reply.startswith("N/A") else np.nan
+
+def parse_date(*, date_string):
+    """
+    Return the date received as string onto timestamp or N/A.
+    :param date_string:
+    :return: A timestamp in panda date format
+    """
+    logging.info("parse_date >>>")
+    if date_string.startswith('N/A'):
+        date_formatted = 'N/A'
+    else:
+        #i.e. date_string = '18th Feb 20'
+        date_formatted = pd.to_datetime(date_string)
+
+    logging.debug("Date parsed: {}".format(date_formatted))
+    logging.info("parse_date <<<")
+    return date_formatted
 
 def add_current_game_data(*,
-                          current_critic_score,
-                          current_developer,
+                          current_rank,
                           current_game_name,
+                          current_game_genre,
                           current_platform,
                           current_publisher,
-                          current_rank,
-                          current_release_year,
-                          current_sales_gl,
-                          current_sales_jp,
+                          current_developer,
+                          current_vgchartz_score,
+                          current_critic_score,
+                          current_user_score,
+                          current_total_shipped,
+                          current_total_sales,
                           current_sales_na,
-                          current_sales_ot,
                           current_sales_pal,
-                          current_user_score):
+                          current_sales_jp,
+                          current_sales_ot,
+                          current_release_date,
+                          current_last_update):
     """
     Add all the game data to the related lists
-
-    :param current_critic_score:
-    :param current_developer:
-    :param current_game_name:
-    :param current_platform:
-    :param current_publisher:
-    :param current_rank:
-    :param current_release_year:
-    :param current_sales_gl:
-    :param current_sales_jp:
-    :param current_sales_na:
-    :param current_sales_ot:
-    :param current_sales_pal:
-    :param current_user_score:
-    :return:
     """
     logging.info("add_current_game_data >>>")
     game_name.append(current_game_name)
     rank.append(current_rank)
     platform.append(current_platform)
+    genre.append(current_game_genre)
     publisher.append(current_publisher.strip())
     developer.append(current_developer.strip())
+    vgchartz_score.append(current_vgchartz_score)
     critic_score.append(current_critic_score)
     user_score.append(current_user_score)
+    total_shipped.append(current_total_shipped)
+    total_sales.append(current_total_sales)
     sales_na.append(current_sales_na)
     sales_pal.append(current_sales_pal)
     sales_jp.append(current_sales_jp)
     sales_ot.append(current_sales_ot)
-    sales_gl.append(current_sales_gl)
-    year.append(current_release_year)
+    release_date.append(current_release_date)
+    last_update.append(current_last_update)
     logging.info("add_current_game_data <<<")
 
 
@@ -186,45 +194,52 @@ def download_data(*, start_page, end_page, include_genre):
 
         for tag in game_tags:
 
-            current_gname = " ".join(tag.string.split())  # add game name to list
-            logging.debug("Downloaded game: {}. Name: {}".format(downloaded_games + 1, current_gname))
-
-            # Get different attributes traverse up the DOM tree
+            current_game_name = " ".join(tag.string.split())
             data = tag.parent.parent.find_all("td")
-            #print(data)
+
+            logging.debug("Downloaded game: {}. Name: {}".format(downloaded_games + 1, current_game_name))
+
+            # Get the resto of attributes traverse up the DOM tree looking for the cells in results' table
             current_rank = np.int32(data[0].string)
             current_platform = data[3].find('img').attrs['alt']
             current_publisher = data[4].string
             current_developer = data[5].string
-            current_critic_score = float(data[6].string) if not data[6].string.startswith("N/A") else np.nan
-            current_user_score = float(data[7].string) if not data[7].string.startswith("N/A") else np.nan
-            current_sales_na = float(data[9].string[:-1]) if not data[9].string.startswith("N/A") else np.nan
-            current_sales_pal = float(data[10].string[:-1]) if not data[10].string.startswith("N/A") else np.nan
-            current_sales_jp = float(data[11].string[:-1]) if not data[11].string.startswith("N/A") else np.nan
-            current_sales_ot = float(data[12].string[:-1]) if not data[12].string.startswith("N/A") else np.nan
-            current_sales_gl = float(data[8].string[:-1]) if not data[8].string.startswith("N/A") else np.nan
-            current_release_year = get_release_year(raw_year=data[13].string.split()[-1])
+            current_vgchartz_score = parse_number(number_string=data[6].string)
+            current_critic_score = parse_number(number_string=data[7].string)
+            current_user_score = parse_number(number_string=data[8].string)
+            current_total_shipped = parse_number(number_string=data[9].string)
+            current_total_sales = parse_number(number_string=data[10].string)
+            current_sales_na = parse_number(number_string=data[11].string)
+            current_sales_pal = parse_number(number_string=data[12].string)
+            current_sales_jp = parse_number(number_string=data[13].string)
+            current_sales_ot = parse_number(number_string=data[14].string)
+            current_release_date = parse_date(date_string=data[15].string)
+            current_last_update = parse_date(date_string=data[16].string)
+
+            # The genre requires another HTTP Request, so it's made at the end
+            game_url = tag.attrs['href']
+            current_game_genre = ""
+            if include_genre:
+                current_game_genre = get_genre(game_url=game_url)
 
             add_current_game_data(
-                current_critic_score=current_critic_score,
-                current_developer=current_developer,
-                current_game_name=current_gname,
+                current_rank=current_rank,
+                current_game_name=current_game_name,
+                current_game_genre=current_game_genre,
                 current_platform=current_platform,
                 current_publisher=current_publisher,
-                current_rank=current_rank,
-                current_release_year=current_release_year,
-                current_sales_gl=current_sales_gl,
-                current_sales_jp=current_sales_jp,
+                current_developer=current_developer,
+                current_vgchartz_score=current_vgchartz_score,
+                current_critic_score=current_critic_score,
+                current_user_score=current_user_score,
+                current_total_shipped=current_total_shipped,
+                current_total_sales=current_total_sales,
                 current_sales_na=current_sales_na,
-                current_sales_ot=current_sales_ot,
                 current_sales_pal=current_sales_pal,
-                current_user_score=current_user_score)
-
-            game_url = tag.attrs['href']
-            game_genre = ""
-            if include_genre:
-                game_genre = get_genre(game_url=game_url)
-            genre.append(game_genre)
+                current_sales_jp=current_sales_jp,
+                current_sales_ot=current_sales_ot,
+                current_release_date=current_release_date,
+                current_last_update=current_last_update)
 
             downloaded_games += 1
 
@@ -243,38 +258,45 @@ def save_games_data(*, filename, separator, enc):
     columns = {
         'Rank': rank,
         'Name': game_name,
-        'Platform': platform,
-        'Year': year,
         'Genre': genre,
-        'Critic_Score': critic_score,
-        'User_Score': user_score,
+        'Platform': platform,
         'Publisher': publisher,
         'Developer': developer,
+        'Vgchartz_Score': vgchartz_score,
+        'Critic_Score': critic_score,
+        'User_Score': user_score,
+        'Total_Shipped': total_shipped,
+        'Total_Sales': total_sales,
         'NA_Sales': sales_na,
         'PAL_Sales': sales_pal,
         'JP_Sales': sales_jp,
         'Other_Sales': sales_ot,
-        'Global_Sales': sales_gl
+        'Release_Date': release_date,
+        'Last_Update': last_update
     }
+
     df = pd.DataFrame(columns)
     logging.debug("Dataframe column name: {}".format(df.columns))
-    df = df[[
-        'Rank', 'Name', 'Platform', 'Year', 'Genre',
-        'Publisher', 'Developer', 'Critic_Score', 'User_Score',
-        'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales', 'Global_Sales']]
+    df = df[[ 'Rank', 'Name', 'Genre', 'Platform', 'Publisher', 'Developer',
+              'Vgchartz_Score', 'Critic_Score', 'User_Score', 'Total_Shipped',
+              'Total_Sales', 'NA_Sales', 'PAL_Sales', 'JP_Sales', 'Other_Sales',
+              'Release_Date', 'Last_Update' ]]
+
     df.to_csv(filename, sep=separator, encoding=enc, index=False)
     logging.info("save_games_data <<<")
 
 if __name__ == "__main__":
+
+    # Buffers
     rank = []
     game_name = []
-    platform = []
-    year = []
     genre = []
-    critic_score, user_score = [], []
-    publisher = []
-    developer = []
-    sales_na, sales_pal, sales_jp, sales_ot, sales_gl = [], [], [], [], []
+    platform = []
+    publisher, developer = [], []
+    critic_score, user_score, vgchartz_score = [], [], []
+    total_shipped = []
+    total_sales, sales_na, sales_pal, sales_jp, sales_ot = [], [], [], [], []
+    release_date, last_update = [], []
 
     properties = None
 
@@ -313,5 +335,5 @@ if __name__ == "__main__":
 
     except:
         print("Global exception")
-        print("Unexpected error:", sys.exc_info()[0])
+        print("Unexpected error:", sys.exc_info())
         pass
