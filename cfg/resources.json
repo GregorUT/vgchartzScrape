@@ -1,14 +1,14 @@
 {
-  "include_genre": false,
-  "application_log_filename": "app.log",
-  "output_filename": "vgsales.csv",
+  "application_log_filename": "log/app.log",
+  "output_filename": "dataset/vgsales.csv",
   "separator": ",",
   "encoding": "utf-8",
   "start_page": 1,
   "end_page": 2,
+  "include_genre": false,
   "base_page_url": "https://www.vgchartz.com/gamedb/?page=",
   "query_parameters": {
-    "results": 1000,
+    "results": 10,
     "console": null,
     "region": "All",
     "developer": null,

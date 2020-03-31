@@ -1,9 +1,10 @@
 from bs4 import BeautifulSoup, element
 from random import randint, choice
+import urllib
+import urllib.request
 import pandas as pd
 import numpy as np
 import logging
-import urllib
 import sys
 import time
 import json
@@ -41,7 +42,7 @@ def generate_remaining_url(*, query_parameters):
     for param in query_parameters:
         value=query_parameters.get(param, None)
         reply += f"&{param}={value}" if value is not None else f"&{param}="
-    logging.debug(f"Url Generated: {base_url}?{reply}")
+    logging.debug(f"Url Generated: {base_url}N{reply}")
     logging.info("generate_remaining_url <<<")
     return reply
 
@@ -66,6 +67,7 @@ def get_page(*, url):
 def get_genre(*, game_url):
     """
     Return the game genre retrieved from the given url
+    (It involves another http request)
     :param game_url:
     :return: Genre of the input game
     """
@@ -73,12 +75,14 @@ def get_genre(*, game_url):
     logging.debug("Page to download: {}".format(game_url))
     site_raw = get_page(url=game_url)
     sub_soup = BeautifulSoup(site_raw, "html.parser")
-    # again, the info box is inconsistent among games so we
+
+    # Eventually the info box is inconsistent among games so we
     # have to find all the h2 and traverse from that to the genre name
+    # and make a temporary tag here to search
+    # for the one that contains the word "Genre"
     h2s = sub_soup.find("div", {"id": "gameGenInfoBox"}).find_all('h2')
-    # make a temporary tag here to search for the one that contains
-    # the word "Genre"
     temp_tag = element.Tag
+
     for h2 in h2s:
         if h2.string == 'Genre':
             temp_tag = h2
@@ -187,6 +191,7 @@ def download_data(*, start_page, end_page, include_genre):
 
             # Get different attributes traverse up the DOM tree
             data = tag.parent.parent.find_all("td")
+            #print(data)
             current_rank = np.int32(data[0].string)
             current_platform = data[3].find('img').attrs['alt']
             current_publisher = data[4].string
@@ -273,7 +278,7 @@ if __name__ == "__main__":
 
     properties = None
 
-    with open("resources.json") as file:
+    with open("cfg/resources.json") as file:
         properties = json.load(file)
 
     logging.root.handlers = []
@@ -307,5 +312,6 @@ if __name__ == "__main__":
             enc=properties['encoding'])
 
     except:
+        print("Global exception")
         print("Unexpected error:", sys.exc_info()[0])
         pass
