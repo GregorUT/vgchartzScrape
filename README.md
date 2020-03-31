@@ -2,7 +2,7 @@
 
 vgchartzfull.py is a python@3 script based on BeautifulSoup.
 
-It creates a dataset with data from more than 16,500 games. based on data from  http://www.vgchartz.com/gamedb/ 
+It creates a dataset with data from more than 57,000 games. based on data from  http://www.vgchartz.com/gamedb/ 
 
 ## Output
 
