@@ -6,7 +6,7 @@ It creates a dataset with data from more than 57,000 games. based on data from  
 
 ## Output
 
-The dataset is saved as vgsales.csv.
+The dataset is saved in the file specified at cfg/resources.json, by default "dataset/vgsales.csv".
 
 ## Install & execution
 
