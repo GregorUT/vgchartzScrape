@@ -29,7 +29,7 @@ def parse_games(game_tags):
     for tag in game_tags:
         game = {}
         game["Name"] = " ".join(tag.string.split())
-        print(rec_count+1, 'Fetch Data for game', unidecode.unidecode(game['Name']))
+        #print(rec_count+1, 'Fetch Data for game', unidecode.unidecode(game['Name']))
 
         data = tag.parent.parent.find_all("td")
         if data:
@@ -85,7 +85,7 @@ def parse_genre_esrb(df):
         device_type='desktop', os=('mac', 'linux'))}
     proxy = {}
     if proxy_enabled:
-        print("\n******getting list of proxies and testing them******'\n")
+        #print("\n******getting list of proxies and testing them******'\n")
         # this an api call which returns a list of working proxies that get checked evrey 15 minutes
         proxies = cycle(get_proxies(5))
         proxy = next(proxies)
@@ -114,16 +114,18 @@ def parse_genre_esrb(df):
                         '_')[1].split('.')[0].upper()
                 # we successfuly got the genre and rating
                 df.loc[index, 'status'] = 1
-                print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
+                #print('Successfully scraped genre and rating for :', df.at[index, 'Name'])
 
         except(ProxyError):
             proxy = next(proxies)
 
-        except (ConnectionError, Timeout, ProtocolError):
-            print('Something went wrong while connecting to', df.at[index, 'Name'], 'url, will try again later')
+        except (ConnectionError, Timeout, ProtocolError, TimeoutError):
+            #print('Something went wrong while connecting to', df.at[index, 'Name'], 'url, will try again later')
+            continue
 
         except Exception as e:
-            print('different error occurred while connecting, will pass')
+            #print('different error occurred while connecting, will pass')
+            continue
         # wait for 1 seconds between every call,
         # we do not want to get blocked or abuse the server
         time.sleep(1)
@@ -142,16 +144,17 @@ if __name__ == "__main__":
         df_subsets = np.array_split(df[df['status'] == 0], NUM_WORKERS)
         #update num_workers
         df_subsets = [i for i in df_subsets if len(i) != 0]
-        NUM_WORKERS = len(df_subsets) # we don't want to have a worker for empty subsets
-        pool = Pool(processes=NUM_WORKERS)
-        results = pool.map(retry_game, df_subsets)
-        try:
-            df_updated = pd.concat(results)
-            df = pd.concat([df[df['status'] == 1], df_updated])
-        except: 
-            print('error occurred while joining dataframe')
-        pool.close()
-        pool.join()
+        if len(df_subsets) != 0:
+            NUM_WORKERS = len(df_subsets)# we don't want to have a worker for empty subsets
+            pool = Pool(processes=NUM_WORKERS)
+            results = pool.map(retry_game, df_subsets)
+            try:
+                df_updated = pd.concat(results)
+                df = pd.concat([df[df['status'] == 1], df_updated])
+            except: 
+                print('error occurred while joining dataframe')
+            pool.close()
+            pool.join()
         return df
 
     rec_count = 0
@@ -217,11 +220,11 @@ if __name__ == "__main__":
                 # links are in the navigation bar
 
                 parse_games(game_tags)
+                page += 1
                 print('\n******begin scraping for Genre and Rating******\n')
                 df = process_games(df)
-                page += 1
 
-        except (ConnectionError, Timeout, ProxyError, RequestException, ProtocolError):
+        except (ConnectionError, Timeout, ProxyError, RequestException, ProtocolError, TimeoutError):
             print('Something went wrong while connecting to page: ',
                 page, ', will try again later')
             #proxy = get_proxies(1)
@@ -246,7 +249,7 @@ if __name__ == "__main__":
             failed_games = len(df[df['status'] == 0])
             if failed_games == 0 or time.time() > t_end:
                 break
-            print('Number of not scraped yet:', failed_games, '\n')
+            #print('Number of not scraped yet:', failed_games, '\n')
             time.sleep(10)  # wait for 10 seconds for the server to recover?
         except Exception as e:
             print("something went wrong! We're on page: " + str(page) + '\nSaving successfully crawled data')

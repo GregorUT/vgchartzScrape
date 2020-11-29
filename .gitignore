@@ -103,3 +103,12 @@ venv.bak/
 # mypy
 .mypy_cache/
 .vscode/
+
+# csv
+*.csv
+
+# ipynb
+*.ipynb
+
+# ignore this folder
+testing/
