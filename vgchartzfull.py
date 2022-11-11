@@ -36,11 +36,11 @@ for page in range(1, pages):
     # vgchartz website is really weird so we have to search for
     # <a> tags with game urls
     game_tags = list(filter(
-        lambda x: x.attrs['href'].startswith('http://www.vgchartz.com/game/'),
+        lambda x: 'href' in x.attrs and x.attrs['href'].startswith('https://www.vgchartz.com/game/'),
         # discard the first 10 elements because those
         # links are in the navigation bar
         soup.find_all("a")
-    ))[10:]
+    ))
 
     for tag in game_tags:
 
